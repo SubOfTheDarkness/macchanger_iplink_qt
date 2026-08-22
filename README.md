@@ -59,4 +59,8 @@
 ## Важное примечание по безопасности
 Для изменения MAC-адреса приложение выполняет системные команды (ip link set dev ...). При нажатии на кнопку "Применить изменения" операционная система вызовет графическое окно polkit (pkexec) для авторизации пользователя с правами sudo/root. Без ввода корректного пароля администратора MAC-адрес изменен не будет.
 
+Так же есть возможность включить кэширование пароля(на 5 минут) для pkexec чтобы не нужно было каждый раз вводить пароль(на свой страх и риск):
+```sh
+echo -e 'polkit.addRule(function(action, subject) {\n    if (action.id == "org.freedesktop.policykit.exec") {\n        return polkit.Result.AUTH_ADMIN_KEEP;\n    }\n});' | sudo tee /etc/polkit-1/rules.d/50-pkexec-global.rules
+```
 
