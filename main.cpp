@@ -174,7 +174,6 @@ private:
         QPushButton *btnRestoreDefault = new QPushButton("Родной MAC", this);
         btnRestoreDefault->setStyleSheet("background-color: #6c757d; color: white; font-weight: bold; padding: 4px;");
         leftColumn->addWidget(btnRestoreDefault);
-        leftColumn->addStretch();
 
         QVBoxLayout *rightColumn = new QVBoxLayout();
         
@@ -197,7 +196,6 @@ private:
         editCustomMac->setPlaceholderText("AA:BB:CC:DD:EE:FF");
         editCustomMac->hide();
         rightColumn->addWidget(editCustomMac);
-        rightColumn->addStretch();
 
         horizSplitter->addLayout(leftColumn, 1);
         horizSplitter->addLayout(rightColumn, 1);
@@ -209,6 +207,7 @@ private:
         txtInterfaceInfo->setMaximumHeight(90);
         txtInterfaceInfo->setStyleSheet("background-color: #2d3436; color: #00cec9; font-family: monospace; font-size: 11px;");
         macLayout->addWidget(txtInterfaceInfo);
+        macLayout->addStretch(); 
 
         macLayout->addSpacing(10);
         btnApply = new QPushButton("Применить изменения", this);

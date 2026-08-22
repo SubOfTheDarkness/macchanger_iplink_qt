@@ -1,3 +1,12 @@
 .vscode
 .git
 .cache
+
+MacChanger
+
+*.o
+qrc_resources.cpp
+
+.qmake.stash
+Makefile
+compile_commands.json
