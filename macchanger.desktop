@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=MacChanger ToolKit
+Comment=Fast MAC address modifier and network diagnostics tool
+Exec=MacChanger
+Icon=network-wired
+Terminal=false
+Categories=Network;
+Keywords=mac;changer;network;ping;
+StartupNotify=true

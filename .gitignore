@@ -1,6 +1,7 @@
 .vscode
 .git
 .cache
+build
 
 MacChanger
 
