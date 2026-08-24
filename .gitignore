@@ -2,6 +2,8 @@
 .git
 .cache
 build
+src
+pkg
 
 MacChanger
 
@@ -11,3 +13,5 @@ qrc_resources.cpp
 .qmake.stash
 Makefile
 compile_commands.json
+
+*.tar.zst

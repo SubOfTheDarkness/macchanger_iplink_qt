@@ -9,15 +9,19 @@ license=('GPL')
 depends=('qt6-base' 'iproute2' 'iputils' 'polkit')
 makedepends=('cmake')
 
-source=("local_sources::dir://.")
-sha256sums=('SKIP')
+source=()
+sha256sums=()
+options=('!debug')
 
 build() {
-  cmake -B build -S "$srcdir/local_sources" \
+  find "$startdir" -maxdepth 1 ! -name "src" ! -name "pkg" ! -name "$pkgname*" -exec cp -t "$srcdir" -r {} + 2>/dev/null || true
+
+  cmake -B build -S "$srcdir" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr
   cmake --build build
 }
+
 
 package() {
   DESTDIR="$pkgdir" cmake --install build

@@ -1,6 +1,6 @@
 # Maintainer: SubOfTheDarkness <204970490+SubOfTheDarkness@users.noreply.github.com>
-pkgname=macchanger-toolkit
-pkgver=1.0.0
+pkgname=macchanger-toolkit-git
+pkgver=1.0.0.r0.g7db771f
 pkgrel=1
 pkgdesc="Fast MAC address changer and network ping toolkit (Qt6/CMake)"
 arch=('x86_64')
@@ -8,9 +8,17 @@ url="https://github.com/SubOfTheDarkness/macchanger_iplink_qt"
 license=('GPL')
 depends=('qt6-base' 'iproute2' 'iputils' 'polkit')
 makedepends=('cmake' 'git')
+provides=('macchanger-toolkit')
+conflicts=('macchanger-toolkit')
 
-source=("git+${url}.git")
+source=("${pkgname}::git+${url}.git")
 sha256sums=('SKIP')
+options=('!debug')
+
+pkgver() {
+  cd "$srcdir/$pkgname"
+  printf "1.0.0.r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
 
 build() {
   cmake -B build -S "$srcdir/$pkgname" \
