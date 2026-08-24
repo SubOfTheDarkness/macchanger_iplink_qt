@@ -27,6 +27,8 @@ install(TARGETS MacChanger DESTINATION bin)
 
 install(FILES macchanger.desktop DESTINATION share/applications)
 
+install(FILES icon.png DESTINATION share/pixmaps RENAME macchanger-toolkit.png)
+
 set(CPACK_PACKAGE_NAME "macchanger-toolkit")
 set(CPACK_PACKAGE_VERSION "1.0.0")
 set(CPACK_PACKAGE_RELEASE "1")

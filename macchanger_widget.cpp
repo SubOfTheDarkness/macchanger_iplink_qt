@@ -1,6 +1,7 @@
 #include "macchanger_widget.h"
 #include "ui_macchanger_widget.h"
 #include "ping_tab.h"
+#include "icon.xpm"
 #include <QMessageBox>
 #include <QStyle>
 #include <QMenu>
@@ -40,6 +41,9 @@ MacChangerWidget::MacChangerWidget(bool hasTraySupport, bool startInTray, QWidge
     if (m_hasTraySupport) {
         initTray();
     }
+
+    QPixmap iconPixmap(icon_xpm); 
+    this->setWindowIcon(QIcon(iconPixmap)); 
     
     initConnections();
     initShortcuts(); 
@@ -139,7 +143,10 @@ void MacChangerWidget::initPaths() {
  */
 void MacChangerWidget::initTray() {
     trayIcon = new QSystemTrayIcon(this);
-    trayIcon->setIcon(style()->standardIcon(QStyle::SP_DriveNetIcon));
+
+    QPixmap iconPixmap(icon_xpm); 
+    trayIcon->setIcon(QIcon(iconPixmap)); 
+
     trayIcon->setToolTip("MAC Changer Tool");
 
     QMenu *trayMenu = new QMenu(this);
