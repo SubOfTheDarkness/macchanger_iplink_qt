@@ -14,7 +14,7 @@ sha256sums=()
 options=('!debug')
 
 build() {
-  find "$startdir" -maxdepth 1 ! -name "src" ! -name "pkg" ! -name "$pkgname*" -exec cp -t "$srcdir" -r {} + 2>/dev/null || true
+  find "$startdir" -maxdepth 1 ! -name "src" ! -name "pkg" ! -name ".git" ! -name "$pkgname*" -exec cp -t "$srcdir" -r {} + 2>/dev/null || true
 
   cmake -B build -S "$srcdir" \
     -DCMAKE_BUILD_TYPE=Release \
