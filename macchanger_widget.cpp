@@ -1,5 +1,6 @@
 #include "macchanger_widget.h"
 #include "ui_macchanger_widget.h"
+#include "terminal_about_dialog.h"
 #include "ping_tab.h"
 #include "icon.xpm"
 #include <QMessageBox>
@@ -665,97 +666,5 @@ bool MacChangerWidget::isAutoStartEnabled() {
 
 /* Диалог About(лицензия) */
 void MacChangerWidget::showAboutDialog() {
-    QDialog *aboutDialog = new QDialog(this);
-    aboutDialog->setWindowTitle("system_info --about");
-    aboutDialog->setMinimumSize(520, 380);
-
-    QVBoxLayout *layout = new QVBoxLayout(aboutDialog);
-    layout->setContentsMargins(10, 10, 10, 10);
-
-    QTextEdit *txtAbout = new QTextEdit(aboutDialog);
-    txtAbout->setReadOnly(true);
-    
-    txtAbout->setStyleSheet(
-        "QTextEdit {"
-        "    background-color: #0c0c0c;"
-        "    border: 1px solid #222222;"
-        "    font-family: 'Source Code Pro', 'Fira Code', 'Courier New', monospace;"
-        "    font-size: 12px;"
-        "}"
-    );
-
-    QString systemUser = qgetenv("USER");
-    if (systemUser.isEmpty()) systemUser = "user";
-    
-    QString systemHost = QSysInfo::machineHostName();
-    if (systemHost.isEmpty()) systemHost = "linux";
-
-    QString globalVersion = QCoreApplication::applicationVersion();
-
-    QString paleRed   = "#ff7675";
-    QString white     = "#ffffff";
-    QString brightRed = "#ff003c";
-    QString softYellow= "#f1c40f";
-
-    QString promptTop = QString("<span style='color: %1;'>╭─</span>"
-                                "<span style='color: %2;'>%3</span>"
-                                "<span style='color: %4;'>@</span>"
-                                "<span style='color: %2;'>%5</span> "
-                                "<span style='color: %4;'>in</span> "
-                                "<span style='color: %4;'>~</span> "
-                                "<span style='color: %4;'>took</span> "
-                                "<span style='color: %6;'>0s</span>")
-                        .arg(paleRed, brightRed, systemUser, white, systemHost, softYellow);
-
-    QString promptBottom = QString("<span style='color: %1;'>╰─λ</span>").arg(paleRed);
-
-    QString htmlContent = QString(
-        "%1<br>"
-        "%2 ./macchanger --version<br><br>"
-        "--------------------------------------------------<br>"
-        "<span style='color: #00FF66;'>▶ APPLICATION:</span> MacChanger ToolKit<br>"
-        "<span style='color: #00FF66;'>▶ VERSION:    </span> v%3<br>"
-        "<span style='color: #00FF66;'>▶ DEVELOPER:  </span> SubOfTheDarkness<br>"
-        "<span style='color: #00FF66;'>▶ COPYRIGHT:  </span> Copyright &copy; 2026 Free Software Foundation, Inc.<br>"
-        "--------------------------------------------------<br><br>"
-        "<span style='color: #E6DB74;'>[LICENSE NOTICE]</span><br>"
-        "<span style='color: #888888; font-size: 11px;'>"
-        "This program is free software: you can redistribute it and/or modify it "
-        "under the terms of the GNU General Public License as published by the Free Software "
-        "Foundation, either version 3 of the License, or (at your option) any later version.<br><br>"
-        "This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; "
-        "without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. "
-        "See the GNU General Public License for more details.</span><br><br>"
-        "%1<br>"
-        "%2 <span style='color: #ffffff; background-color: #ffffff;'>&nbsp;</span>"
-    ).arg(promptTop, promptBottom, globalVersion);
-
-    txtAbout->setHtml(htmlContent);
-    layout->addWidget(txtAbout);
-
-    QPushButton *btnClose = new QPushButton("exit", aboutDialog);
-    btnClose->setStyleSheet(
-        "QPushButton {"
-        "    background-color: #1e1e1e;"
-        "    color: #ff7675;"
-        "    border: 1px solid #333333;"
-        "    font-family: monospace;"
-        "    padding: 5px 15px;"
-        "}"
-        "QPushButton:hover {"
-        "    background-color: #2a2a2a;"
-        "    border-color: #ff003c;"
-        "    color: #ffffff;"
-        "}"
-    );
-    connect(btnClose, &QPushButton::clicked, aboutDialog, &QDialog::accept);
-    
-    QHBoxLayout *btnLayout = new QHBoxLayout();
-    btnLayout->addItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
-    btnLayout->addWidget(btnClose);
-    
-    layout->addLayout(btnLayout);
-
-    aboutDialog->setAttribute(Qt::WA_DeleteOnClose);
-    aboutDialog->exec();
+    TerminalAboutDialog::showAbout(this, "A graphical tool for fast MAC address modification, profile management, and multi-threaded network diagnostics.");
 }

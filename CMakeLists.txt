@@ -21,6 +21,8 @@ add_executable(MacChanger
     resources.qrc
     switch_button.h
     switch_button.cpp
+    terminal_about_dialog.cpp
+    terminal_about_dialog.h
 )
 
 target_link_libraries(MacChanger PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
