@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(MacChanger VERSION 1.0 LANGUAGES CXX)
+project(macchanger-toolkit VERSION 1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,7 +10,7 @@ set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
 
-add_executable(MacChanger
+add_executable(macchanger-toolkit
     main.cpp
     macchanger_widget.h
     macchanger_widget.cpp
@@ -25,11 +25,11 @@ add_executable(MacChanger
     terminal_about_dialog.h
 )
 
-target_link_libraries(MacChanger PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
+target_link_libraries(macchanger-toolkit PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
 
-target_include_directories(MacChanger PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(macchanger-toolkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-install(TARGETS MacChanger DESTINATION bin)
+install(TARGETS macchanger-toolkit DESTINATION bin)
 
 install(FILES macchanger.desktop DESTINATION share/applications)
 

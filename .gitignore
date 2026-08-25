@@ -2,6 +2,7 @@
 .git
 .cache
 build
+build-deb
 src
 pkg
 

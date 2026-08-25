@@ -2,7 +2,7 @@
 Type=Application
 Name=MacChanger ToolKit
 Comment=Fast MAC address modifier and network diagnostics tool
-Exec=MacChanger
+Exec=macchanger-toolkit
 Icon=macchanger-toolkit
 Terminal=false
 Categories=Network;

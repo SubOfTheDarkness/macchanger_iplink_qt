@@ -1,0 +1,9 @@
+• docker        — Базовый движок контейнеризации.
+• docker-buildx — CLI-плагин для поддержки BuildKit и сборки образов из stdin.
+• xorg-xhost    — Утилита для проброса графических окон из контейнера на экран (xhost +local:docker).
+
+Команда установки на Arch:
+$ sudo pacman -S docker docker-buildx xorg-xhost
+$ sudo systemctl enable --now docker
+
+И нужно быть в группе docker
