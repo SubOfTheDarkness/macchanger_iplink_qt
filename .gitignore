@@ -3,6 +3,7 @@
 .cache
 build
 build-deb
+build-appimage
 src
 pkg
 
@@ -16,3 +17,5 @@ Makefile
 compile_commands.json
 
 *.tar.zst
+
+*.tmp
