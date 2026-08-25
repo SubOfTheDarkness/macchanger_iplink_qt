@@ -17,6 +17,8 @@
 #include <QTextEdit>
 #include <QDialog>
 #include <QVBoxLayout>
+#include <QStandardPaths>
+#include <QSysInfo>
 
 /* 
  * Конструктор главного окна. Инициализирует разметку UI, устанавливает маску ввода MAC,
@@ -59,7 +61,7 @@ MacChangerWidget::MacChangerWidget(bool hasTraySupport, bool startInTray, QWidge
     createNewPingTab();
 
     statusBarLabel = new QLabel(this);
-    statusBarLabel->setText(QString(" Version: %1 | OS: Linux").arg(APP_VERSION));
+    statusBarLabel->setText(QString(" Version: %1 | OS: Linux").arg(QCoreApplication::applicationVersion()));
     
     statusBarLabel->setStyleSheet(
         "QLabel {"
@@ -70,6 +72,12 @@ MacChangerWidget::MacChangerWidget(bool hasTraySupport, bool startInTray, QWidge
     );
     
     ui->verticalLayout->addWidget(statusBarLabel);
+
+    ui->sett_autostart_switch->blockSignals(true);
+    ui->sett_autostart_switch->setChecked(isAutoStartEnabled());
+    ui->sett_autostart_switch->blockSignals(false);
+
+    setWindowTitle(QString("%1 Toolkit - v%2").arg(windowTitle(), QCoreApplication::applicationVersion()));
 
     if (startInTray) {
         this->hide();
@@ -186,20 +194,26 @@ void MacChangerWidget::initConnections() {
 
     connect(ui->ping_add_tab_btn, &QPushButton::clicked, this, &MacChangerWidget::createNewPingTab);
 
-    QRegularExpression macRegex("^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$");
-    QRegularExpressionValidator *validator = new QRegularExpressionValidator(macRegex, this);
-    ui->mac_address_entry->setValidator(validator);
+    connect(ui->sett_autostart_switch, &QCheckBox::toggled, this, &MacChangerWidget::onAutostartToggled);
+
+    connect(ui->sett_about_btn, &QPushButton::clicked, this, &MacChangerWidget::showAboutDialog);
 
     connect(ui->mac_address_entry, &QLineEdit::textChanged, this, [this](const QString &text) {
         bool isValid = ui->mac_address_entry->hasAcceptableInput();
         ui->mac_apply_btn->setEnabled(isValid);
         
-        if (!isValid && !text.isEmpty()) {
-            ui->mac_address_entry->setStyleSheet("border: 1px solid #cc0000; background-color: #ffcccc;");
-        } else {
-            ui->mac_address_entry->setStyleSheet("");
+        QString rawText = text;
+        rawText.remove(':').remove('_');
+        
+        bool hasError = !isValid && !rawText.trimmed().isEmpty();
+        
+        if (ui->mac_address_entry->property("error").toBool() != hasError) {
+            ui->mac_address_entry->setProperty("error", hasError);
+            ui->mac_address_entry->style()->unpolish(ui->mac_address_entry);
+            ui->mac_address_entry->style()->polish(ui->mac_address_entry);
         }
     });
+
 }
 
 /* 
@@ -417,8 +431,7 @@ void MacChangerWidget::updateProfileMac(const QString &profileName) {
         QString mac = settings->value(sectionName + "/" + profileName).toString().trimmed();
         ui->mac_alias_address_lbl->setText(mac.isEmpty() ? "Not Found" : mac);
 
-        QRegularExpression staticMacRegex("^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$");
-        bool isConfigMacValid = staticMacRegex.match(mac).hasMatch();
+        bool isConfigMacValid = macRegex.match(mac).hasMatch();
         
         ui->mac_apply_btn->setEnabled(isConfigMacValid);
         ui->mac_alias_address_lbl->setProperty("error", !isConfigMacValid);
@@ -435,18 +448,21 @@ void MacChangerWidget::updateProfileMac(const QString &profileName) {
  */
 void MacChangerWidget::updateCurrentMac(const QString &interface) {
     if (interface.isEmpty()) return;
+    
     QProcess process;
     process.start("ip", QStringList() << "link" << "show" << interface);
+    
     if (process.waitForFinished()) {
         QString output = QString::fromUtf8(process.readAllStandardOutput());
         bool found = false;
+        
         for (const QString &line : output.split('\n')) {
             if (line.contains("ether")) {
-                QRegularExpression macRegex("([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}");
                 QRegularExpressionMatch match = macRegex.match(line);
                 if (match.hasMatch()) {
                     ui->mac_current_lbl->setText(match.captured(0));
                     found = true;
+                    break;
                 }
             }
         }
@@ -455,6 +471,7 @@ void MacChangerWidget::updateCurrentMac(const QString &interface) {
         ui->mac_current_lbl->setText("Interface reading error");
     }
 }
+
 
 /* 
  * Считывает заводской (родной) MAC-адрес интерфейса из эталонной секции [DEFAULTS] INI-файла. 
@@ -574,3 +591,171 @@ void MacChangerWidget::closePingTab(int index) {
     }
 }
 
+/* Слот для переключения автозапуска */
+void MacChangerWidget::onAutostartToggled(bool checked) {
+    setAutoStart(checked);
+}
+
+/* Переключение автозапуска с проверкой на уже существующий экземпляр в автозапуске(в том же файле, другие не учитываются) и попапом на ошибку */
+void MacChangerWidget::setAutoStart(bool enable) {
+    QString autostartDir = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + "/autostart";
+    QDir().mkpath(autostartDir);
+
+    QString appName = QCoreApplication::applicationName();
+    
+    QString filePath = autostartDir + "/" + appName.toLower() + ".desktop";
+    QString currentExecPath = QString("\"%1\" --tray").arg(QCoreApplication::applicationFilePath());
+
+    if (enable) {
+        QSettings autoSettings(filePath, QSettings::IniFormat);
+        autoSettings.beginGroup("Desktop Entry");
+        autoSettings.setValue("Type", "Application");
+        autoSettings.setValue("Name", "MacChanger ToolKit");
+        autoSettings.setValue("Comment", "Fast MAC address changer and network ping toolkit");
+        autoSettings.setValue("Exec", currentExecPath);
+        autoSettings.setValue("Icon", "macchanger-toolkit");
+        autoSettings.setValue("Terminal", "false");
+        autoSettings.setValue("Hidden", "false");
+        autoSettings.setValue("NoDisplay", "false");
+        autoSettings.setValue("X-GNOME-Autostart-enabled", "true");
+        autoSettings.endGroup();
+
+        autoSettings.sync();
+        
+        if (autoSettings.status() != QSettings::NoError || !QFile::exists(filePath)) {
+            QMessageBox::critical(this, "Autostart Error", 
+                "Failed to write the autostart configuration file. Please check folder permissions.");
+            
+            ui->sett_autostart_switch->blockSignals(true);
+            ui->sett_autostart_switch->setChecked(false);
+            ui->sett_autostart_switch->blockSignals(false);
+        }
+    } else {
+        if (QFile::exists(filePath)) {
+            QSettings autoSettings(filePath, QSettings::IniFormat);
+            QString savedExec = autoSettings.value("Desktop Entry/Exec").toString();
+
+            if (!savedExec.isEmpty() && savedExec != currentExecPath) {
+                QMessageBox::StandardButton reply = QMessageBox::warning(this, "Alternative App Detected",
+                    "The existing autostart entry points to a different instance or location of this application.\n\n"
+                    "Are you sure you want to delete it anyway?",
+                    QMessageBox::Yes | QMessageBox::No);
+
+                if (reply == QMessageBox::No) {
+                    ui->sett_autostart_switch->blockSignals(true);
+                    ui->sett_autostart_switch->setChecked(true);
+                    ui->sett_autostart_switch->blockSignals(false);
+                    return;
+                }
+            }
+        }
+        
+        QFile::remove(filePath);
+    }
+}
+
+/* Переключение состояние свитча автозапуска в зависимости от наличия файла */
+bool MacChangerWidget::isAutoStartEnabled() {
+    QString appName = QCoreApplication::applicationName();
+    
+    QString filePath = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + "/autostart/" + appName.toLower() + ".desktop";
+    
+    return QFile::exists(filePath);
+}
+
+/* Диалог About(лицензия) */
+void MacChangerWidget::showAboutDialog() {
+    QDialog *aboutDialog = new QDialog(this);
+    aboutDialog->setWindowTitle("system_info --about");
+    aboutDialog->setMinimumSize(520, 380);
+
+    QVBoxLayout *layout = new QVBoxLayout(aboutDialog);
+    layout->setContentsMargins(10, 10, 10, 10);
+
+    QTextEdit *txtAbout = new QTextEdit(aboutDialog);
+    txtAbout->setReadOnly(true);
+    
+    txtAbout->setStyleSheet(
+        "QTextEdit {"
+        "    background-color: #0c0c0c;"
+        "    border: 1px solid #222222;"
+        "    font-family: 'Source Code Pro', 'Fira Code', 'Courier New', monospace;"
+        "    font-size: 12px;"
+        "}"
+    );
+
+    QString systemUser = qgetenv("USER");
+    if (systemUser.isEmpty()) systemUser = "user";
+    
+    QString systemHost = QSysInfo::machineHostName();
+    if (systemHost.isEmpty()) systemHost = "linux";
+
+    QString globalVersion = QCoreApplication::applicationVersion();
+
+    QString paleRed   = "#ff7675";
+    QString white     = "#ffffff";
+    QString brightRed = "#ff003c";
+    QString softYellow= "#f1c40f";
+
+    QString promptTop = QString("<span style='color: %1;'>╭─</span>"
+                                "<span style='color: %2;'>%3</span>"
+                                "<span style='color: %4;'>@</span>"
+                                "<span style='color: %2;'>%5</span> "
+                                "<span style='color: %4;'>in</span> "
+                                "<span style='color: %4;'>~</span> "
+                                "<span style='color: %4;'>took</span> "
+                                "<span style='color: %6;'>0s</span>")
+                        .arg(paleRed, brightRed, systemUser, white, systemHost, softYellow);
+
+    QString promptBottom = QString("<span style='color: %1;'>╰─λ</span>").arg(paleRed);
+
+    QString htmlContent = QString(
+        "%1<br>"
+        "%2 ./macchanger --version<br><br>"
+        "--------------------------------------------------<br>"
+        "<span style='color: #00FF66;'>▶ APPLICATION:</span> MacChanger ToolKit<br>"
+        "<span style='color: #00FF66;'>▶ VERSION:    </span> v%3<br>"
+        "<span style='color: #00FF66;'>▶ DEVELOPER:  </span> SubOfTheDarkness<br>"
+        "<span style='color: #00FF66;'>▶ COPYRIGHT:  </span> Copyright &copy; 2026 Free Software Foundation, Inc.<br>"
+        "--------------------------------------------------<br><br>"
+        "<span style='color: #E6DB74;'>[LICENSE NOTICE]</span><br>"
+        "<span style='color: #888888; font-size: 11px;'>"
+        "This program is free software: you can redistribute it and/or modify it "
+        "under the terms of the GNU General Public License as published by the Free Software "
+        "Foundation, either version 3 of the License, or (at your option) any later version.<br><br>"
+        "This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; "
+        "without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. "
+        "See the GNU General Public License for more details.</span><br><br>"
+        "%1<br>"
+        "%2 <span style='color: #ffffff; background-color: #ffffff;'>&nbsp;</span>"
+    ).arg(promptTop, promptBottom, globalVersion);
+
+    txtAbout->setHtml(htmlContent);
+    layout->addWidget(txtAbout);
+
+    QPushButton *btnClose = new QPushButton("exit", aboutDialog);
+    btnClose->setStyleSheet(
+        "QPushButton {"
+        "    background-color: #1e1e1e;"
+        "    color: #ff7675;"
+        "    border: 1px solid #333333;"
+        "    font-family: monospace;"
+        "    padding: 5px 15px;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: #2a2a2a;"
+        "    border-color: #ff003c;"
+        "    color: #ffffff;"
+        "}"
+    );
+    connect(btnClose, &QPushButton::clicked, aboutDialog, &QDialog::accept);
+    
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    btnLayout->addItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
+    btnLayout->addWidget(btnClose);
+    
+    layout->addLayout(btnLayout);
+
+    aboutDialog->setAttribute(Qt::WA_DeleteOnClose);
+    aboutDialog->exec();
+}

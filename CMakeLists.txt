@@ -19,9 +19,13 @@ add_executable(MacChanger
     ping_tab.cpp
     ping_tab.ui
     resources.qrc
+    switch_button.h
+    switch_button.cpp
 )
 
 target_link_libraries(MacChanger PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
+
+target_include_directories(MacChanger PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 install(TARGETS MacChanger DESTINATION bin)
 

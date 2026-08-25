@@ -1,13 +1,9 @@
 #include "ping_tab.h"
 #include "ui_ping_tab.h"
 #include <QProcess>
+#include <QStyle>
 #include <QRegularExpression>
 
-/* 
- * Конструктор автономной вкладки пинга. Разворачивает интерфейс из файла ui_ping_tab.h, 
- * запускает автоматическое вычисление текущего системного шлюза, создает объект QProcess 
- * и связывает сигналы кликов по кнопкам инкремента/декремента и старта сетевого потока.
- */
 PingTab::PingTab(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::ping_tab)
@@ -20,35 +16,39 @@ PingTab::PingTab(QWidget *parent)
 
     connect(ui->ping_toggle_btn, &QPushButton::clicked, this, &PingTab::togglePing);
     connect(pingProcess, &QProcess::readyReadStandardOutput, this, &PingTab::readPingOutput);
+    connect(pingProcess, &QProcess::readyReadStandardError, this, &PingTab::readPingOutput);
+
+    connect(pingProcess, &QProcess::finished, this, [this]() {
+        ui->ping_toggle_btn->setEnabled(true);
+        ui->ping_toggle_btn->setText("Start Ping");
+        
+        ui->ping_toggle_btn->setProperty("state", "default");
+        ui->ping_toggle_btn->style()->unpolish(ui->ping_toggle_btn);
+        ui->ping_toggle_btn->style()->polish(ui->ping_toggle_btn);
+        
+        emit statusChanged(false);
+    });
 
     connect(ui->ping_masc_increase_btn, &QPushButton::clicked, this, [this]() { onOctetChanged(1); });
     connect(ui->ping_masc_decrease_btn, &QPushButton::clicked, this, [this]() { onOctetChanged(-1); });
 }
 
-/* 
- * Деструктор вкладки. Обеспечивает безопасность закрытия: если процесс утилиты ping 
- * активен в Linux, метод отправляет сигнал SIGKILL и синхронно ожидает до 50 мс остановки потока 
- * в ядре, предотвращая падение приложения с ошибкой уничтожения работающего процесса.
- */
 PingTab::~PingTab() {
-    if (pingProcess && pingProcess->state() == QProcess::Running) {
-        pingProcess->kill();
-        pingProcess->waitForFinished(50);
+    if (pingProcess) {
+        pingProcess->disconnect();
+        if (pingProcess->state() == QProcess::Running) {
+            pingProcess->kill();
+            pingProcess->waitForFinished(50);
+        }
     }
-    
     delete ui;
 }
 
-/* 
- * Автономно опрашивает глобальную таблицу маршрутизации ОС Linux через утилиту 'ip route show'. 
- * Построчно парсит вывод в поисках основного шлюза по умолчанию ('default via'). 
- * Наденный IP-адрес подставляет в поле ввода. Если сеть недоступна, выставляет 0.0.0.0.
- */
 void PingTab::autoDetectSystemGateway() {
     QString gwIp = "0.0.0.0";
-    
     QProcess process;
     process.start("ip", QStringList() << "route" << "show");
+    
     if (process.waitForFinished()) {
         QString output = QString::fromUtf8(process.readAllStandardOutput());
         for (const QString &line : output.split('\n')) {
@@ -61,15 +61,9 @@ void PingTab::autoDetectSystemGateway() {
             }
         }
     }
-    
     ui->ping_ip_entry->setText(gwIp);
 }
 
-/* 
- * Срабатывает при клике на кнопки "+" и "-". Парсит текущую строку IP-адреса, 
- * выделяет исключительно третий октет, переводит его в число и добавляет дельту (1 или -1). 
- * Включает круговую защиту байта (значения удерживаются строго в диапазоне от 0 до 255).
- */
 void PingTab::onOctetChanged(int val) {
     QString currentIp = ui->ping_ip_entry->text().trimmed();
     QStringList parts = currentIp.split(".");
@@ -86,37 +80,53 @@ void PingTab::onOctetChanged(int val) {
     }
 }
 
-/* 
- * Переключает состояние сетевого потока. Если пинг запущен — принудительно останавливает его 
- * и шлет сигнал statusChanged(false). Если остановлен — очищает консоль, считывает целевой IP, 
- * асинхронно запускает системную утилиту 'ping' и шлет сигнал statusChanged(true) главному окну.
- */
 void PingTab::togglePing() {
-    if (pingProcess->state() == QProcess::Running) {
-        pingProcess->kill();
-        ui->ping_toggle_btn->setText("Start Ping");
-        ui->ping_toggle_btn->setStyleSheet("background-color: #28a745; color: white; font-weight: bold;");
-        ui->ping_log_text->append("\n[!] Ping stopped by user.");
+    if (pingProcess->state() == QProcess::Running || pingProcess->state() == QProcess::Starting) {
+        ui->ping_toggle_btn->setEnabled(false);
+        ui->ping_toggle_btn->setText("Stopping...");
         
-        emit statusChanged(false);
+        ui->ping_toggle_btn->setProperty("state", "stopping");
+        ui->ping_toggle_btn->style()->unpolish(ui->ping_toggle_btn);
+        ui->ping_toggle_btn->style()->polish(ui->ping_toggle_btn);
+        
+        ui->ping_log_text->append("<br><span style='color: #ff7675;'>[!] Terminating background ping...</span>");
+        
+        pingProcess->terminate();
+        if (!pingProcess->waitForFinished(400)) {
+            pingProcess->kill();
+        }
+        ui->ping_log_text->append("<br><span style='color: #ff4f4f;'>[!] Ping terminated.</span>");
     } else {
         ui->ping_log_text->clear();
         QString targetIp = ui->ping_ip_entry->text().trimmed();
-        ui->ping_log_text->append(QString("[*] Ping started for node: %1...\n").arg(targetIp));
+        
+        if (targetIp.isEmpty()) {
+            ui->ping_log_text->append("<span style='color: #ff003c;'>[ERROR] Target IP is empty!</span>");
+            return;
+        }
+
+        ui->ping_log_text->append(QString("<span style='color: #00C3FF;'>[*] Ping started for node: %1...</span><br>").arg(targetIp));
         
         pingProcess->start("ping", QStringList() << targetIp);
+        
         ui->ping_toggle_btn->setText("Stop Ping");
-        ui->ping_toggle_btn->setStyleSheet("background-color: #dc3545; color: white; font-weight: bold;");
+        ui->ping_toggle_btn->setProperty("state", "active");
+        ui->ping_toggle_btn->style()->unpolish(ui->ping_toggle_btn);
+        ui->ping_toggle_btn->style()->polish(ui->ping_toggle_btn);
         
         emit statusChanged(true);
     }
 }
 
-/* 
- * Вызывается автоматически, как только в stdout запущенного процесса ping появляются новые данные. 
- * Считывает сырой массив байт, декодирует его в UTF-8 строку и дописывает текст в поле лога терминала.
- */
 void PingTab::readPingOutput() {
-    QByteArray data = pingProcess->readAllStandardOutput();
-    ui->ping_log_text->append(QString::fromUtf8(data).trimmed());
+    QByteArray stdOut = pingProcess->readAllStandardOutput();
+    QByteArray stdErr = pingProcess->readAllStandardError();
+    
+    if (!stdOut.isEmpty()) {
+        ui->ping_log_text->append(QString::fromUtf8(stdOut).trimmed());
+    }
+    if (!stdErr.isEmpty()) {
+        ui->ping_log_text->append(QString("<span style='color: #ff7675;'>%1</span>")
+                                  .arg(QString::fromUtf8(stdErr).trimmed()));
+    }
 }

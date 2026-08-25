@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>350</height>
+    <height>384</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -52,6 +52,11 @@ QTextEdit#ping_log_text QScrollBar::handle:vertical {
 }
 QTextEdit#ping_log_text QScrollBar::handle:vertical:hover {
     background: #4af626; 
+}
+
+QLineEdit[error=&quot;true&quot;] {
+    border: 1px solid #cc0000;
+    background-color: rgba(204, 0, 0, 0.15);
 }
 </string>
   </property>
@@ -265,10 +270,115 @@ border-radius: 3px;
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="tab_settings">
+      <attribute name="title">
+       <string>Settings</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_5">
+       <item>
+        <layout class="QHBoxLayout" name="sett_autostart_layout">
+         <item>
+          <layout class="QVBoxLayout" name="sett_autostart_lbls_layout">
+           <item>
+            <widget class="QLabel" name="info_sett_autostart_lbl">
+             <property name="styleSheet">
+              <string notr="true">    font-size: 13px;
+    font-weight: bold;
+    color: palette(window-text); </string>
+             </property>
+             <property name="text">
+              <string>Auto-start when logging in</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="info_sett_autostart_desc_lbl">
+             <property name="styleSheet">
+              <string notr="true">    font-size: 11px;
+    color: rgba(palette(window-text), 0.6); </string>
+             </property>
+             <property name="text">
+              <string>MacChanger ToolKit will launch at the start of the user session, minimized to the tray (if possible).</string>
+             </property>
+             <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <widget class="SwitchButton" name="sett_autostart_switch">
+           <property name="text">
+            <string>autostart</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="verticalSpacer_4">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="sett_about_layout">
+         <item>
+          <spacer name="horizontalSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QPushButton" name="sett_about_btn">
+           <property name="text">
+            <string>About</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_2">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>SwitchButton</class>
+   <extends>QCheckBox</extends>
+   <header>switch_button.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

@@ -3,6 +3,7 @@
 #include <QWidget>
 #include <QLabel>
 #include <QSettings>
+#include <QRegularExpression>
 #include <QSystemTrayIcon>
 
 namespace Ui {
@@ -25,10 +26,10 @@ private slots:
     void handleCtrlShiftR();
     void handleCtrlShiftW();
     void handleCtrlEnter();
+    void onAutostartToggled(bool checked);
+    void showAboutDialog();
 
 private:
-    const QString APP_VERSION = "v1.0.0";
-
     Ui::macchanger_widget *ui;
 
     QLabel *statusBarLabel;
@@ -39,6 +40,8 @@ private:
     QSystemTrayIcon *trayIcon;
 
     bool m_hasTraySupport; 
+
+    inline static const QRegularExpression macRegex{"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}"};
 
     void createNewPingTab();
     void closePingTab(int index);
@@ -56,4 +59,7 @@ private:
     void reloadConfigAction();
     void setNativeMac();
     void applyMacChange();
+
+    void setAutoStart(bool enable);
+    bool isAutoStartEnabled();
 };
