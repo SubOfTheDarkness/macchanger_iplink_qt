@@ -1,0 +1,20 @@
+{
+    "KPlugin": {
+        "Id": "org.kde.macchanger.qml",
+        "Name": "MacChanger QML",
+        "Description": "Fast MAC-address changer (QML)",
+        "Icon": "macchanger-widget-icon",
+        "Category": "Utilities",
+        "Version": "1.0",
+        "Website": "https://github.com/SubOfTheDarkness/macchanger_iplink_qt",
+        "Authors": [
+            {
+                "Name": "sub"
+            }
+        ],
+        "EnabledByDefault": true
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API": "declarativeappletscript",
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

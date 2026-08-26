@@ -1,0 +1,18 @@
+.
+├── LICENSE
+├── org.kde.macchanger.qml
+│   ├── contents
+│   │   ├── config
+│   │   │   └── default_config.ini
+│   │   └── ui
+│   │       ├── BashExecutor.qml
+│   │       ├── ConfigParser.js
+│   │       ├── InterfaceInfoDialog.qml
+│   │       ├── MacEntryField.qml
+│   │       └── main.qml
+│   ├── icon.png
+│   └── metadata.json
+├── packer.sh
+└── tree_qml.txt
+
+5 directories, 11 files

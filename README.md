@@ -1,102 +1,89 @@
-# MacChanger (Qt Tool)
-[Читать на русском](README_RU.md)
+# MacChanger QML (Plasma 6 Widget)
 
-A cross-platform (Linux-oriented) graphical C++/Qt6 application designed for fast MAC address modification, hardware address profile management, and multi-threaded network diagnostics.
+A fast, lightweight, and native KDE Plasma 6 widget designed for rapid MAC address modification and hardware address profile management directly from your system tray or panel. 
+
+It acts as a standalone, zero-dependency frontend companion to the desktop application, using the exact same local configuration structure.
 
 ## Features
 
-* **Network Interface Manager:** Automatically detects active network interfaces in the system (excluding loopback `lo`).
-* **MAC Profile Management:** Read and save custom aliases for MAC addresses via local INI configuration files.
-* **Flexible Address Changing:** Supports manual MAC address input with strict mask validation, pre-configured profile switching, or quick reset to the factory/default hardware address.
-* **Secure Execution:** System settings are applied via `pkexec`, requesting root privileges only at the exact moment of modification.
-* **System Tray Integration:** Automatically checks for system tray availability. Minimizes to the tray on close, provides a context menu for deployment, hot restarting, or exiting.
-* **Multi-threaded Diagnostics (Ping):** Supports dynamic sub-tabs (`№1`, `№2`...) to ping multiple targets simultaneously. Each tab is fully autonomous, auto-detects the active gateway (`default via`), and manages its own isolated ping process.
-* **Keyboard-Driven Workflow:** Advanced hotkey support allows full control over the application without using a mouse.
+* **Plasma 6 Integration:** Built on clean QML, Qt Quick, and Kirigami components, matching your native system design and theme.
+* **Network Interface Manager:** Automatically detects system network interfaces and displays the active MAC address in real-time.
+* **Profile Sync:** Reads and applies named MAC address profiles directly from `~/.config/macchanger/address_aliases.ini` (compatible with the C++ application).
+* **Reset to Native MAC:** Instantly reads the hardware defaults, dynamically injects fallback profiles, and re-reads settings on the fly.
+* **Interface Info Dialog:** A built-in terminal-styled modal (`ip addr show`) that safely renders full diagnostic data without locking the UI.
+* **Active Status Indicator:** Disables interaction buttons and activates a native `BusyIndicator` spinner while the Polkit auth process is in progress.
+* **Clean MVC Architecture:** The logic layer is fully separated into isolated, stateless, and declarative modules for high performance and easy reading.
 
-## Hotkeys (Shortcuts)
-* `Ctrl + Q` — Full application closure (unloads from memory).
-* `Ctrl + W` — Close window (minimizes to system tray).
-* `Ctrl + T` — Create a new network monitoring tab (active inside the Ping tab).
-* `Ctrl + Shift + W` — Close the current active sub-tab.
-* `Ctrl + R` — Re-read the configuration file from disk (active inside the MacChanger tab).
-* `Ctrl + Shift + R` — Trigger a hot restart of the entire application.
-* `Ctrl + Return` — Apply the MAC address or start/stop pinging (depending on the active tab).
-
-------------------------------
+---
 
 ## Project Architecture
-The project is built on strict OOP principles with isolated modules:
+The QML-branch repository is decoupled into clean, modular components:
 
-* `CMakeLists.txt` — Main build configuration script.
-* `main.cpp` — Application entry point, CLI flag handling, and main widget initialization.
-* `macchanger_widget.h / .cpp / .ui` — Main window logic, profile management, tray, and shortcuts.
-* `ping_tab.h / .cpp / .ui` — Autonomous, isolated ping tab widget with its own `QProcess`.
-* `resources.qrc` — Qt resource file that compiles the fallback configuration into the binary.
-* `default_config.ini` — Default fallback configuration file.
+* `packer.sh` — Universal automation script to pack, clean, uninstall, or reinstall the widget.
+* `metadata.json` — Plasma package manifest with project metadata, dependencies, and API requirements.
+* `icon.png` — Asset source for the custom widget tray icon.
+* `contents/config/default_config.ini` — Default local fallback configuration compiled inside the widget.
+* `contents/ui/main.qml` — The root view orchestrating layout alignments, models, and reactive bindings.
+* `contents/ui/BashExecutor.qml` — The controller layer encapsulating system pipes and standard buffers.
+* `contents/ui/ConfigParser.js` — A stateless, pure JS INI parser.
+* `contents/ui/MacEntryField.qml` — Custom masked text field with dynamic border error styling.
+* `contents/ui/InterfaceInfoDialog.qml` — Terminal-styled overlay window with adaptive layouts.
 
-## Configuration (INI)
-On the first run, the app creates a physical configuration file at `~/.config/macchanger/address_aliases.ini`. If empty, it imports settings from app resources:
+---
 
-* `[DEFAULTS]` — Stores the default interface and original factory MAC addresses for quick restoration.
-* `[MAC_ALIASES]` — User-defined named profiles (e.g., "Home_Router", "Work_AP").
+## Automation Script (`packer.sh`)
 
-------------------------------
+### Usage and Examples
 
-## Build and Run
-### System Requirements
+* **Pack only:** Generates a universal `.plasmoid` archive (standard ZIP format with exact root folder indexing required by Plasma 6).
+  ```sh
+  ./packer.sh -p
+  ```
+* **Install/Reinstall only:** Copies custom assets to system paths and registers the widget in your local Plasma cache.
+  ```sh
+  ./packer.sh -i
+  ```
+* **Clean archive:** Safely deletes local `.plasmoid` files.
+  ```sh
+  ./packer.sh -c
+  ```
+* **Uninstall from Plasma:** Purges the component completely from the desktop shell.
+  ```sh
+  ./packer.sh -r
+  ```
+* **Combined Chain Execution (Recommended):** You can stack options together in any order. The script will dynamically sort the logic to clean old artifacts, validate code, compile an archive, and trigger a hot reinstall at once:
+  ```sh
+  ./packer.sh -rcpi
+  ```
 
-* A compiler supporting the **C++17** standard (GCC / Clang).
-* **CMake** build system (version 3.16 or higher).
-* **Qt 6** framework (Core, Gui, and Widgets components).
-* Required system utilities: `iproute2` (the `ip` command), `iputils-ping` (`ping`), and `policykit-1` (`pkexec`).
+---
 
-### Build Instructions
+## Installation & Deployment
 
-1. Create a build directory and enter it:
-   ```sh
-   mkdir build && cd build
-   ```
-2. Generate build files via CMake:
-   ```sh
-   cmake ..
-   ```
-3. Compile the project:
-   ```sh
-   make
-   ```
-   
-### CLI Flags
-The application can be started directly in a minimized mode using the command-line flag:
+### Local Shell Deployment (Any Distribution)
+To deploy the extension locally on Arch Linux, Fedora, openSUSE, Ubuntu, or Debian, run the package sequence:
 ```sh
-./MacChanger --tray
+./packer.sh -pi
 ```
-*Note: If the system tray is unavailable in your desktop environment, the `--tray` flag will be ignored, and the application will start in normal windowed mode.*
-
-### Package Generation
-
-#### 1. Generating .deb Package (For Debian / LMDE / Ubuntu)
-The project utilizes CMake's built-in **CPack** module to automatically package the application.
-To build a native `.deb` package that handles all system dependencies and adds a menu shortcut:
+Once deployed, you can instantly spin up a local debugging sandbox environment to preview the panel without locking your layout:
 ```sh
-mkdir -p build && cd build
-cmake ..
-make
-make package
+plasmoidviewer -a org.kde.macchanger.qml
 ```
-This will produce a `macchanger-toolkit-<version>-amd64.deb` file inside the `build` directory.
+---
 
-#### 2. Generating Arch Linux Package
-A local `PKGBUILD` script is included in the repository root. To compile and clean-install the native Arch package using `pacman` directly from your local sources:
+## Security Notice & Password Caching
+To modify the MAC address, the widget executes system commands (`ip link set dev ...`). When clicking **"Apply Changes"**, the OS invokes a graphical polkit window (`pkexec`) to authorize the user with root privileges. Without entering the correct administrator password, the MAC address will not be changed.
+
+If you wish to cache the password for `pkexec` (valid for 5 minutes) so you don't have to enter it every time you switch profiles via the widget, you can add a polkit rule (**at your own risk**):
+
 ```sh
-makepkg -si
+echo -e 'polkit.addRule(function(action, subject) {\n    if (action.id == "org.freedesktop.policykit.exec") {\n        return polkit.Result.AUTH_ADMIN_KEEP;\n    }\n});' | sudo tee /etc/polkit-1/rules.d/50-pkexec-global.rules
 ```
 
 ---
 
-## Security Notice
-To modify the MAC address, the application executes system commands (`ip link set dev ...`). When clicking "Apply", the OS invokes a graphical polkit window (`pkexec`) to authorize the user with root privileges. Without entering the correct administrator password, the MAC address will not be changed.
-
-If you wish to cache the password for `pkexec` (valid for 5 minutes) so you don't have to enter it every time, you can add a polkit rule (**at your own risk**):
-```sh
-echo -e 'polkit.addRule(function(action, subject) {\n    if (action.id == "org.freedesktop.policykit.exec") {\n        return polkit.Result.AUTH_ADMIN_KEEP;\n    }\n});' | sudo tee /etc/polkit-1/rules.d/50-pkexec-global.rules
-```
+### Core Prerequisites
+Ensure your Linux environment has the following active system utilities:
+* `iproute2` (delivers the `ip` binary)
+* `policykit-1` (delivers the `pkexec` binary)
+* `zip` (required strictly to compile the package archive via `packer.sh`)

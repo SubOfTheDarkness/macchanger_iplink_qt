@@ -19,3 +19,13 @@ compile_commands.json
 *.tar.zst
 
 *.tmp
+
+*.plasmoid
+
+*.log
+
+.kdev4/
+*.kdev4
+
+.DS_Store
+.directory
