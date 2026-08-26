@@ -38,19 +38,20 @@ PlasmoidItem {
                 ifaceModel.append({ "text": list[i] });
             }
             
+            var targetIndex = 0;
             if (previousSelection !== "") {
-                var targetIndex = 0;
                 for (var j = 0; j < ifaceModel.count; j++) {
                     if (ifaceModel.get(j).text === previousSelection) {
                         targetIndex = j;
                         break;
                     }
                 }
-                ifaceDropbox.currentIndex = targetIndex;
+                if (ifaceDropbox) {
+                    ifaceDropbox.currentIndex = targetIndex;
+                }
             }
-            console.log("[MACCHANGER_LOG] Interfaces reloaded. Restored selection to index: " + ifaceDropbox.currentIndex);
+            console.log("[MACCHANGER_LOG] Interfaces reloaded. Restored selection to index: " + targetIndex);
         }
-
 
         onProfilesLoaded: (profiles, defaults) => {
             root.defaultsMap = defaults;
@@ -62,8 +63,6 @@ PlasmoidItem {
                 profileModel.append(profiles[i]);
             }
         }
-
-
 
         onCurrentMacLoaded: (mac) => {
             root.currentMac = mac;
@@ -140,45 +139,50 @@ PlasmoidItem {
 
     function triggerConfigLoad() {
         bashExecutor.resetCache();
-        
         var currentUiPath = Qt.resolvedUrl(".").toString().replace("file://", "");
-        
         bashExecutor.connectSource("cat " + currentUiPath + "../config/default_config.ini 2>/dev/null");
-        
         bashExecutor.connectSource("bash -c 'cat $HOME/.config/macchanger/address_aliases.ini 2>/dev/null'");
     }
 
-    compactRepresentation: Kirigami.Icon { source: "macchanger-widget-icon"; active: root.expanded }
-
+    compactRepresentation: PlasmaComponents.Button {
+        id: compactButton
+        Layout.preferredWidth: Kirigami.Units.gridUnit * 2
+        Layout.preferredHeight: Kirigami.Units.gridUnit * 2
+        
+        contentItem: Kirigami.Icon {
+            source: "macchanger-widget-icon"
+            active: compactButton.hovered || root.expanded
+        }
+        onClicked: {
+            root.expanded = !root.expanded;
+        }
+    }
     fullRepresentation: Item {
         anchors.fill: parent
 
         Component.onCompleted: {
             profileModel.clear();
             profileModel.append({ "name": "[Enter Custom]", "mac": "" });
-            profileDropbox.currentIndex = 0;
-
+            if (profileDropbox) {
+                profileDropbox.currentIndex = 0;
+            }
             bashExecutor.connectSource("ip -o link show");
             root.triggerConfigLoad();
         }
 
-
         InterfaceInfoDialog { 
             id: infoDialog 
-            
             infoText: root.interfaceExtendedInfo
 
             Connections {
                 target: root
                 function onInterfaceInfoRequested() {
                     root.interfaceExtendedInfo = "Fetching data...";
-                    bashExecutor.connectSource("ip addr show " + ifaceDropbox.currentText);
+                    bashExecutor.connectSource("ip addr show " + root.selectedInterface);
                     infoDialog.open();
                 }
             }
         }
-
-
 
         ColumnLayout {
             anchors.fill: parent
@@ -212,7 +216,6 @@ PlasmoidItem {
                         root.interfaceInfoRequested();
                     }
                 }
-
 
                 PlasmaComponents.Button {
                     text: "Reset to native MAC"
@@ -299,19 +302,39 @@ PlasmoidItem {
             Kirigami.PromptDialog {
                 id: confirmDialog
                 title: "Confirmation"
-                subtitle: "Change the MAC address to " + macEntry.text.trim() + " on interface " + ifaceDropbox.currentText + "?"
+                subtitle: "Change the MAC address to " + macEntry.text.trim() + " on interface " + root.selectedInterface + "?"
                 standardButtons: Kirigami.Dialog.Yes | Kirigami.Dialog.No
                 onAccepted: {
                     root.isUpdating = true;
-                    root.executeMacChange(ifaceDropbox.currentText, macEntry.text.trim());
+                    root.executeMacChange(root.selectedInterface, macEntry.text.trim());
                 }
             }
 
             PlasmaComponents.Button {
                 Layout.fillWidth: true
                 text: "Apply Changes"
-                enabled: macEntry.isValid && ifaceDropbox.currentText !== "" && !root.isUpdating
+                enabled: macEntry.isValid && root.selectedInterface !== "" && !root.isUpdating
                 onClicked: confirmDialog.open()
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                
+                PlasmaComponents.Label {
+                    text: "MacChanger QML v1.0 by sub"
+                    font.pointSize: 9
+                    opacity: 0.4
+                    Layout.alignment: Qt.AlignLeft
+                }
+                
+                Item { Layout.fillWidth: true }
+                
+                Kirigami.LinkButton {
+                    text: "GitHub"
+                    font.pointSize: 9
+                    opacity: 0.6
+                    Layout.alignment: Qt.AlignRight
+                    onClicked: Qt.openUrlExternally("https://github.com/SubOfTheDarkness/macchanger_iplink_qt")
+                }
             }
         }
     }

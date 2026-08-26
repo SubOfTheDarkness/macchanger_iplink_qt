@@ -11,6 +11,8 @@ DO_PACK=false
 DO_INSTALL=false
 DO_CLEAN=false
 DO_UNINSTALL=false
+DO_TEST=false
+DO_PURGE=false
 
 show_help() {
     echo "Usage: ./pack.sh [options]"
@@ -19,6 +21,8 @@ show_help() {
     echo "  -i        Install/reinstall the packed .plasmoid into Plasma 6"
     echo "  -c        Clean packed archive"
     echo "  -r        Uninstall plasmoid"
+    echo "  -t        Start testing in plasmoidviewer"
+    echo "  -e        Purge Plasma QML Cache"
     echo "  -h        Show this help message"
 }
 
@@ -43,6 +47,8 @@ while [ $# -gt 0 ]; do
                     h) show_help; exit 0 ;;
                     c) DO_CLEAN=true ;;
                     r) DO_UNINSTALL=true ;;
+                    t) DO_TEST=true ;;
+                    e) DO_PURGE=true ;;
                     *) echo "Error: Unknown option -$char"; show_help; exit 1 ;;
                 esac
             done
@@ -66,6 +72,16 @@ if [ "$DO_UNINSTALL" = true ]; then
     else
         echo "Plasmoid ${PLUGIN_ID} is not installed."
     fi
+fi
+
+
+
+if [ "$DO_PURGE" = true ]; then
+    echo "=== PURGING PLASMA QML CACHE ==="
+    rm -rf "$HOME/.cache/qmlcache"
+    rm -rf "$HOME/.cache/plasma*"
+    
+    qdbus6 org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.refreshCurrentShell 2>/dev/null || true
 fi
 
 
@@ -140,7 +156,12 @@ if [ "$DO_INSTALL" = true ]; then
     fi
 
     kpackagetool6 --type Plasma/Applet --install "${PLASMOID_NAME}"
+    echo "=== Widget is successfully installed ==="
+fi
 
-    echo "=== DONE! Widget is installed ==="
-    echo "You can test it via: plasmoidviewer -a ${PLUGIN_ID}"
+
+
+if [ "$DO_TEST" = true ]; then
+    echo "=== Starting testing sandbox in desktop mode ==="
+    plasmoidviewer -a "${PLUGIN_ID}"
 fi
