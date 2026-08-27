@@ -173,6 +173,7 @@ PlasmoidItem {
         InterfaceInfoDialog { 
             id: infoDialog 
             infoText: root.interfaceExtendedInfo
+            interfaceName: root.selectedInterface
 
             Connections {
                 target: root

@@ -1,6 +1,6 @@
 {
     "KPlugin": {
-        "Id": "org.kde.macchanger.qml",
+        "Id": "com.github.subofthedarkness.macchanger.qml",
         "Name": "MacChanger QML",
         "Description": "Fast MAC-address changer (QML)",
         "Icon": "macchanger-widget-icon",

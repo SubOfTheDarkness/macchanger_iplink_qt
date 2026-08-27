@@ -2,9 +2,9 @@
 
 set -e
 
-PLUGIN_ID="org.kde.macchanger.qml"
+PLUGIN_ID="com.github.subofthedarkness.macchanger.qml"
 PLASMOID_NAME="${PLUGIN_ID}.plasmoid"
-WIDGET_DIR="org.kde.macchanger.qml"
+WIDGET_DIR="com.github.subofthedarkness.macchanger.qml"
 PROJECT_ROOT=$(pwd)
 
 DO_PACK=false
@@ -106,7 +106,7 @@ if [ "$DO_PACK" = true ]; then
         echo "Please install it manually using your package manager:"
         echo "  Arch:   sudo pacman -S zip"
         echo "  Fedora: sudo dnf install zip"
-        echo "  Ubuntu: sudo apt install zip"
+        echo "  Debian: sudo apt install zip"
         echo "=========================================================="
         exit 1
     fi
