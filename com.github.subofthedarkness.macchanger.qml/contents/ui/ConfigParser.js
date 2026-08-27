@@ -30,7 +30,7 @@ function parseIni(rawText) {
         if (rawKey.indexOf("HELP") !== -1) continue;
 
         if (activeSection === "DEFAULTS") {
-            defaultsMap[rawKey] = rawVal.toUpperCase();
+            defaultsMap[rawKey.toLowerCase()] = rawVal.toUpperCase();
         }
 
         if (activeSection === "MAC_ALIASES") {
@@ -46,4 +46,17 @@ function parseIni(rawText) {
         profiles: profilesList,
         defaults: defaultsMap
     };
+}
+
+function findIndexInModel(model, targetName) {
+    if (!model || !targetName) return -1;
+    var idx = -1;
+    for (var i = 0; i < model.count; i++) {
+        if (model.get(i).name === targetName) {
+            idx = i;
+            break;
+        }
+    }
+    console.log("[macchanger ModelFinder] Find idx: " + idx + " for name: " + targetName);
+    return idx;
 }

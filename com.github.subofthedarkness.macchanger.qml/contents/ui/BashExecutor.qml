@@ -15,6 +15,8 @@ Plasma5Support.DataSource {
     signal errorOccurred(string errorText)
     signal dependenciesChecked(bool ipFound, bool sedFound, bool pkexecFound)
 
+    signal allProfilesReady()
+
     property var cachedDefaultProfiles: []
     property var cachedUserProfiles: []
     property var cachedDefaultsMap: ({})
@@ -27,6 +29,10 @@ Plasma5Support.DataSource {
     }
 
     function mergeAndEmit() {
+        if (executor.cachedDefaultProfiles.length === 0 || executor.cachedUserProfiles.length === 0) {
+            console.log("[MACCHANGER_LOG] Waiting for both configs to fully load...");
+            return; 
+        }
         var finalProfiles = [];
         var processedNames = {};
 
@@ -45,6 +51,7 @@ Plasma5Support.DataSource {
 
         console.log("[MACCHANGER_LOG] Merged total profiles count: " + finalProfiles.length);
         executor.profilesLoaded(finalProfiles, executor.cachedDefaultsMap);
+        executor.allProfilesReady();
     }
 
     onNewData: (sourceName, data) => {
@@ -74,7 +81,7 @@ Plasma5Support.DataSource {
         if (stderr.length > 0) {
             console.log("[MACCHANGER_ERROR] " + stderr);
             if (sourceName.indexOf("pkexec") !== -1) {
-                executor.errorOccurred("Ошибка прав доступа или отмена операции.");
+                executor.errorOccurred("Access rights error or operation cancellation.");
             } else {
                 executor.errorOccurred(stderr.trim());
             }
@@ -101,7 +108,7 @@ Plasma5Support.DataSource {
             executor.interfacesLoaded(parsedList);
         }
         
-        if (sourceName.indexOf(".ini") !== -1) {
+        if (sourceName.indexOf("cat") !== -1 && sourceName.indexOf(".ini") !== -1 && sourceName.indexOf("sed") === -1) {
             var isUser = sourceName.indexOf("address_aliases.ini") !== -1;
             console.log("[MACCHANGER_LOG] Parsing file. Is user custom file? -> " + isUser);
 

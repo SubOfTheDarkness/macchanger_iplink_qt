@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PlasmaComponents
 import org.kde.kirigami as Kirigami
+import "ConfigParser.js" as ConfigParser
 
 PlasmoidItem {
     id: root
@@ -19,6 +20,9 @@ PlasmoidItem {
 
     property bool hasDependencies: true
     property string errorAlertText: ""
+
+    property string pendingProfileSelection: ""
+    property bool configLoaded: false
 
     signal forceSelectIndex(int index)
     signal interfaceInfoRequested()
@@ -84,6 +88,20 @@ PlasmoidItem {
             }
         }
 
+        onAllProfilesReady: {
+            root.configLoaded = true;
+            
+            if (root.pendingProfileSelection !== "") {
+                var targetIdx = ConfigParser.findIndexInModel(profileModel, root.pendingProfileSelection);
+                if (targetIdx !== -1) {
+                    root.forceSelectIndex(targetIdx);
+                } else {
+                    root.forceSelectIndex(0);
+                }
+                root.pendingProfileSelection = "";
+            }
+        }
+
         onCurrentMacLoaded: (mac) => {
             root.currentMac = mac;
             root.isUpdating = false;
@@ -111,7 +129,6 @@ PlasmoidItem {
         }
         
         var targetModelLabel = "default " + root.selectedInterface;
-        
         var targetDiskLabel = "default_" + root.selectedInterface;
         var existIndex = -1;
         
@@ -128,27 +145,10 @@ PlasmoidItem {
             var sedCmd = "bash -c 'sed -i \"/\\[MAC_ALIASES\\]/a " + targetDiskLabel + " = " + nativeMac + "\" $HOME/.config/macchanger/address_aliases.ini'";
             
             console.log("[MACCHANGER] Writing new profile via native $HOME sed: " + targetDiskLabel);
+            
+            root.pendingProfileSelection = targetModelLabel;
+            
             bashExecutor.connectSource(sedCmd);
-            
-            var dynamicConnector = Qt.createQmlObject(
-                'import QtQuick; Connections {
-                    target: bashExecutor;
-                    function onProfilesLoaded() {
-                        var newIndex = -1;
-                        for (var j = 0; j < profileModel.count; j++) {
-                            if (profileModel.get(j).name === "' + targetModelLabel + '") {
-                                newIndex = j;
-                                break;
-                            }
-                        }
-                        if (newIndex !== -1) {
-                            root.forceSelectIndex(newIndex);
-                        }
-                        this.destroy();
-                    }
-                }', root, "DynamicNativeResetHandler"
-            );
-            
             root.triggerConfigLoad();
         }
     }
@@ -159,6 +159,7 @@ PlasmoidItem {
     }
 
     function triggerConfigLoad() {
+        root.configLoaded = false;
         bashExecutor.resetCache();
         var currentUiPath = Qt.resolvedUrl(".").toString().replace("file://", "");
         bashExecutor.connectSource("cat " + currentUiPath + "../config/default_config.ini 2>/dev/null");
@@ -189,7 +190,6 @@ PlasmoidItem {
             }
             
             bashExecutor.connectSource("which ip sed pkexec");
-            
             bashExecutor.connectSource("ip -o link show");
             root.triggerConfigLoad();
         }
@@ -209,12 +209,42 @@ PlasmoidItem {
             }
         }
 
+        Kirigami.PromptDialog {
+            id: saveProfileDialog
+            title: "Save Profile"
+            subtitle: "Enter a name for the profile with address " + macEntry.text.trim().toUpperCase() + ":"
+            standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
+            
+            contentItem: TextField {
+                id: profileNameInput
+                placeholderText: "e.g.: Home Router"
+                Layout.fillWidth: true
+            }
+
+            onAccepted: {
+                var inputName = profileNameInput.text.trim();
+                if (inputName === "") return;
+
+                var diskKey = inputName.replace(/ /g, "_");
+                var targetMac = macEntry.text.trim().toUpperCase();
+
+                var sedCmd = "bash -c 'sed -i \"/\\[MAC_ALIASES\\]/a " + diskKey + " = " + targetMac + "\" $HOME/.config/macchanger/address_aliases.ini'";
+                
+                console.log("[MACCHANGER] Saving custom profile via sed: " + diskKey + " = " + targetMac);
+                bashExecutor.connectSource(sedCmd);
+                root.pendingProfileSelection = inputName;
+                root.triggerConfigLoad();
+                profileNameInput.text = "";
+            }
+        }
+
         ColumnLayout {
             anchors.fill: parent
             anchors.margins: 15
             spacing: 8
 
             Kirigami.InlineMessage {
+                id: msgAlert
                 Layout.fillWidth: true
                 type: root.hasDependencies ? Kirigami.MessageType.Error : Kirigami.MessageType.Warning
                 text: root.errorAlertText
@@ -263,7 +293,7 @@ PlasmoidItem {
 
                 PlasmaComponents.Button {
                     text: "Reset to native MAC"
-                    enabled: ifaceDropbox.currentText !== "" && !root.isUpdating
+                    enabled: ifaceDropbox.currentText !== "" && !root.isUpdating && root.configLoaded
                     onClicked: root.resetToNative()
                 }
             }
@@ -344,11 +374,34 @@ PlasmoidItem {
                 opacity: root.hasDependencies ? 1.0 : 0.5
             }
             
-            MacEntryField {
-                id: macEntry
+            RowLayout {
                 Layout.fillWidth: true
-                readOnly: profileDropbox.currentIndex !== 0 || root.isUpdating || !root.hasDependencies
-                opacity: readOnly ? 0.6 : 1.0
+                spacing: 6
+
+                MacEntryField {
+                    id: macEntry
+                    Layout.fillWidth: true
+                    readOnly: profileDropbox.currentIndex !== 0 || root.isUpdating || !root.hasDependencies
+                    opacity: readOnly ? 0.6 : 1.0
+                }
+
+                PlasmaComponents.Button {
+                    text: "Rand"
+                    visible: profileDropbox.currentIndex === 0
+                    enabled: root.hasDependencies && !root.isUpdating
+                    onClicked: {
+                        macEntry.text = root.generateRandomMac();
+                    }
+                }
+
+                PlasmaComponents.Button {
+                    text: "Save"
+                    visible: profileDropbox.currentIndex === 0
+                    enabled: macEntry.isValid && root.hasDependencies && !root.isUpdating
+                    onClicked: {
+                        saveProfileDialog.open();
+                    }
+                }
             }
 
             Item { Layout.fillHeight: true }
@@ -372,7 +425,6 @@ PlasmoidItem {
             }
             RowLayout {
                 Layout.fillWidth: true
-                
                 PlasmaComponents.Label {
                     text: "MacChanger QML v1.0 by sub"
                     font.pointSize: 9
@@ -391,6 +443,16 @@ PlasmoidItem {
                 }
             }
         }
+    }
+
+    function generateRandomMac() {
+        var firstBytes = ["02", "06", "0A", "0E", "12", "16", "1A", "1E"];
+        var mac = [firstBytes[Math.floor(Math.random() * firstBytes.length)]];
+        for (var i = 0; i < 5; i++) {
+            var byte = Math.floor(Math.random() * 256).toString(16).padStart(2, '0').toUpperCase();
+            mac.push(byte);
+        }
+        return mac.join(":");
     }
 
     Timer {
