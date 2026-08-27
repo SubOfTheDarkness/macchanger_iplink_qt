@@ -17,6 +17,9 @@ PlasmoidItem {
     property bool isUpdating: false
     property var defaultsMap: ({})
 
+    property bool hasDependencies: true
+    property string errorAlertText: ""
+
     signal forceSelectIndex(int index)
     signal interfaceInfoRequested()
     property string interfaceExtendedInfo: "Fetching data..."
@@ -29,6 +32,22 @@ PlasmoidItem {
 
     BashExecutor {
         id: bashExecutor
+
+        onErrorOccurred: (errorText) => {
+            root.isUpdating = false;
+            root.errorAlertText = errorText;
+        }
+
+        onDependenciesChecked: (ipFound, sedFound, pkexecFound) => {
+            if (!ipFound || !sedFound || !pkexecFound) {
+                root.hasDependencies = false;
+                var missing = [];
+                if (!ipFound) missing.push("iproute2 (ip)");
+                if (!sedFound) missing.push("sed");
+                if (!pkexecFound) missing.push("polkit (pkexec)");
+                root.errorAlertText = "В системе нет нужного софта: " + missing.join(", ");
+            }
+        }
 
         onInterfacesLoaded: (list) => {
             var previousSelection = root.selectedInterface;
@@ -166,6 +185,9 @@ PlasmoidItem {
             if (profileDropbox) {
                 profileDropbox.currentIndex = 0;
             }
+            
+            bashExecutor.connectSource("which ip sed pkexec");
+            
             bashExecutor.connectSource("ip -o link show");
             root.triggerConfigLoad();
         }
@@ -190,10 +212,29 @@ PlasmoidItem {
             anchors.margins: 15
             spacing: 8
 
-            PlasmaComponents.Label { text: "Network Interface:"; font.bold: true }
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                type: root.hasDependencies ? Kirigami.MessageType.Error : Kirigami.MessageType.Warning
+                text: root.errorAlertText
+                visible: root.errorAlertText !== ""
+                showCloseButton: root.hasDependencies
+                onVisibleChanged: {
+                    if (!visible && root.hasDependencies) {
+                        root.errorAlertText = ""; 
+                    }
+                }
+            }
+
+            PlasmaComponents.Label { 
+                text: "Network Interface:"
+                font.bold: true 
+                opacity: root.hasDependencies ? 1.0 : 0.5
+            }
+            
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 6
+                enabled: root.hasDependencies && !root.isUpdating
                 
                 ComboBox {
                     id: ifaceDropbox
@@ -240,10 +281,16 @@ PlasmoidItem {
                 }
             }
 
-            PlasmaComponents.Label { text: "MAC Address Profiles:"; font.bold: true }
+            PlasmaComponents.Label { 
+                text: "MAC Address Profiles:"
+                font.bold: true 
+                opacity: root.hasDependencies ? 1.0 : 0.5
+            }
+            
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 6
+                enabled: root.hasDependencies && !root.isUpdating
 
                 ComboBox {
                     id: profileDropbox
@@ -289,12 +336,16 @@ PlasmoidItem {
                 }
             }
 
-            PlasmaComponents.Label { text: "Target MAC Address:"; font.bold: true }
+            PlasmaComponents.Label { 
+                text: "Target MAC Address:"
+                font.bold: true 
+                opacity: root.hasDependencies ? 1.0 : 0.5
+            }
             
             MacEntryField {
                 id: macEntry
                 Layout.fillWidth: true
-                readOnly: profileDropbox.currentIndex !== 0 || root.isUpdating
+                readOnly: profileDropbox.currentIndex !== 0 || root.isUpdating || !root.hasDependencies
                 opacity: readOnly ? 0.6 : 1.0
             }
 
@@ -314,7 +365,7 @@ PlasmoidItem {
             PlasmaComponents.Button {
                 Layout.fillWidth: true
                 text: "Apply Changes"
-                enabled: macEntry.isValid && root.selectedInterface !== "" && !root.isUpdating
+                enabled: macEntry.isValid && root.selectedInterface !== "" && !root.isUpdating && root.hasDependencies
                 onClicked: confirmDialog.open()
             }
             RowLayout {
@@ -342,7 +393,7 @@ PlasmoidItem {
 
     Timer {
         id: updateTimer
-        interval: 2000; repeat: true; running: root.expanded
+        interval: 2000; repeat: true; running: root.expanded && root.hasDependencies
         onTriggered: { if (root.selectedInterface) bashExecutor.connectSource("ip link show " + root.selectedInterface); }
     }
 }

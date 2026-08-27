@@ -11,6 +11,9 @@ Plasma5Support.DataSource {
     signal profilesLoaded(var profilesList, var defaultsMap)
     signal currentMacLoaded(string macAddress)
     signal extendedInfoLoaded(string infoText)
+    
+    signal errorOccurred(string errorText)
+    signal dependenciesChecked(bool ipFound, bool sedFound, bool pkexecFound)
 
     property var cachedDefaultProfiles: []
     property var cachedUserProfiles: []
@@ -46,9 +49,38 @@ Plasma5Support.DataSource {
 
     onNewData: (sourceName, data) => {
         var stdout = data.stdout ? data.stdout.toString() : "";
+        var stderr = data.stderr ? data.stderr.toString() : "";
         var output = stdout.trim();
         
         console.log("[MACCHANGER_LOG] Incoming data from: " + sourceName + " | Output bytes: " + output.length);
+        
+        if (sourceName.indexOf("which ip") === 0) {
+            var lines = output.split('\n');
+            var ipFound = false;
+            var sedFound = false;
+            var pkexecFound = false;
+            
+            for (var k = 0; k < lines.length; k++) {
+                if (lines[k].indexOf("/ip") !== -1) ipFound = true;
+                if (lines[k].indexOf("/sed") !== -1) sedFound = true;
+                if (lines[k].indexOf("/pkexec") !== -1) pkexecFound = true;
+            }
+            
+            executor.dependenciesChecked(ipFound, sedFound, pkexecFound);
+            executor.disconnectSource(sourceName);
+            return;
+        }
+
+        if (stderr.length > 0) {
+            console.log("[MACCHANGER_ERROR] " + stderr);
+            if (sourceName.indexOf("pkexec") !== -1) {
+                executor.errorOccurred("Ошибка прав доступа или отмена операции.");
+            } else {
+                executor.errorOccurred(stderr.trim());
+            }
+            executor.disconnectSource(sourceName);
+            return;
+        }
         
         if (sourceName.indexOf("ip -o link show") !== -1) {
             var lines = output.split('\n');
@@ -109,5 +141,4 @@ Plasma5Support.DataSource {
         
         executor.disconnectSource(sourceName);
     }
-
 }
