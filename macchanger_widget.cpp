@@ -82,12 +82,23 @@ MacChangerWidget::MacChangerWidget(bool hasTraySupport, bool startInTray, QWidge
 
     setWindowTitle(QString("%1 Toolkit - v%2").arg(windowTitle(), QCoreApplication::applicationVersion()));
 
+    m_isCentralNotifyLocked = false;
+
+    m_centralNotifyTimer = new QTimer(this);
+    m_centralNotifyTimer->setSingleShot(true);
+    connect(m_centralNotifyTimer, &QTimer::timeout, this, &MacChangerWidget::sendCentralizedNotification);
+
+    m_centralSpamLockTimer = new QTimer(this);
+    m_centralSpamLockTimer->setSingleShot(true);
+    connect(m_centralSpamLockTimer, &QTimer::timeout, this, &MacChangerWidget::unlockNotificationSpamProtection);
+
     if (startInTray) {
         this->hide();
     } else {
         this->showNormal();
     }
 }
+
 
 /* 
  * Деструктор главного окна. Освобождает оперативную память, 
@@ -630,6 +641,8 @@ void MacChangerWidget::createNewPingTab() {
     int newIndex = ui->subtabs_ping->addTab(newPingTab, tabTitle);
     ui->subtabs_ping->setCurrentIndex(newIndex);
 
+    connect(newPingTab, &PingTab::networkLossDetected, this, &MacChangerWidget::collectNetworkLossAlert);
+
     connect(newPingTab, &PingTab::statusChanged, this, [this, newPingTab](bool isRunning) {
         int idx = ui->subtabs_ping->indexOf(newPingTab);
         if (idx != -1) {
@@ -665,6 +678,48 @@ void MacChangerWidget::closePingTab(int index) {
         }
     }
 }
+
+/* Слот перехватывает сигнал падения сети из любого таба */
+void MacChangerWidget::collectNetworkLossAlert(const QString &host, const QString &error) {
+    if (m_isCentralNotifyLocked) return;
+
+    m_alertCache[host] = error;
+
+    if (!m_centralNotifyTimer->isActive()) {
+        m_centralNotifyTimer->start(1000);
+    }
+}
+
+void MacChangerWidget::sendCentralizedNotification() {
+    if (m_alertCache.isEmpty()) return;
+
+    QString hostReport;
+    QMap<QString, QString>::const_iterator it = m_alertCache.constBegin();
+    while (it != m_alertCache.constEnd()) {
+        hostReport.append(QString(" • %1 (%2)\n").arg(it.key(), it.value()));
+        ++it;
+    }
+
+    if (m_hasTraySupport && trayIcon && trayIcon->isVisible()) {
+        trayIcon->showMessage(
+            "MacChanger Network Report",
+            QString("[!] Connection Lost!\nNo response from following hosts:\n\n%1")
+            .arg(hostReport.trimmed()),
+            QSystemTrayIcon::Warning,
+            6000
+        );
+    }
+
+    m_alertCache.clear();
+    m_isCentralNotifyLocked = true;
+    m_centralSpamLockTimer->start(30000);
+}
+
+/* Слот снимает блокировку спама через 30 секунд */
+void MacChangerWidget::unlockNotificationSpamProtection() {
+    m_isCentralNotifyLocked = false;
+}
+
 
 /* Слот для переключения автозапуска */
 void MacChangerWidget::onAutostartToggled(bool checked) {

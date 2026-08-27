@@ -2,6 +2,8 @@
 
 #include <QWidget>
 #include <QProcess>
+#include <QTimer>
+#include <QRegularExpression>
 
 namespace Ui {
     class ping_tab;
@@ -14,17 +16,30 @@ public:
     explicit PingTab(QWidget *parent = nullptr);
     ~PingTab();
 
+    QString targetHost() const;
+
 signals:
     void statusChanged(bool isRunning);
+    void networkLossDetected(const QString &host, const QString &error);
 
 private slots:
     void togglePing();
     void readPingOutput();
     void onOctetChanged(int val);
+    void checkNetworkLossTimeout();
 
 private:
     Ui::ping_tab *ui;
     QProcess *pingProcess;
 
+    int m_sentPackets;
+    int m_lostPackets;
+    double m_totalRtt;
+
+    QTimer *m_lossTimeoutTimer;
+    bool m_wasConnected;
+    QString m_lastErrorType;
+
     void autoDetectSystemGateway();
+    void parsePingLine(const QString &line);
 };

@@ -1,6 +1,6 @@
 # Maintainer: SubOfTheDarkness <204970490+SubOfTheDarkness@users.noreply.github.com>
 pkgname=macchanger-toolkit
-pkgver=1.0.1
+pkgver=1.0.2
 pkgrel=1
 pkgdesc="Fast MAC address changer and network ping toolkit (Qt6/CMake)"
 arch=('x86_64')
