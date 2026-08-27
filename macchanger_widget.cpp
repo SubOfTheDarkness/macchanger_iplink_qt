@@ -20,6 +20,8 @@
 #include <QVBoxLayout>
 #include <QStandardPaths>
 #include <QSysInfo>
+#include <QRandomGenerator>
+#include <QInputDialog>
 
 /* 
  * Конструктор главного окна. Инициализирует разметку UI, устанавливает маску ввода MAC,
@@ -193,6 +195,9 @@ void MacChangerWidget::initConnections() {
     connect(ui->mac_default_addr_btn, &QPushButton::clicked, this, &MacChangerWidget::setNativeMac);
     connect(ui->mac_iface_info_btn, &QPushButton::clicked, this, &MacChangerWidget::showInterfaceInfo);
 
+    connect(ui->mac_random_btn, &QPushButton::clicked, this, &MacChangerWidget::handleRandomMac);
+    connect(ui->mac_save_btn, &QPushButton::clicked, this, &MacChangerWidget::handleSaveProfile);
+
     connect(ui->ping_add_tab_btn, &QPushButton::clicked, this, &MacChangerWidget::createNewPingTab);
 
     connect(ui->sett_autostart_switch, &QCheckBox::toggled, this, &MacChangerWidget::onAutostartToggled);
@@ -202,6 +207,8 @@ void MacChangerWidget::initConnections() {
     connect(ui->mac_address_entry, &QLineEdit::textChanged, this, [this](const QString &text) {
         bool isValid = ui->mac_address_entry->hasAcceptableInput();
         ui->mac_apply_btn->setEnabled(isValid);
+
+        ui->mac_save_btn->setEnabled(isValid);
         
         QString rawText = text;
         rawText.remove(':').remove('_');
@@ -421,10 +428,16 @@ void MacChangerWidget::updateProfileMac(const QString &profileName) {
         ui->mac_alias_address_lbl->hide();
         ui->info_mac_alias_address_lbl->setText("Enter custom address:");
         ui->mac_address_entry->show(); 
-        ui->mac_apply_btn->setEnabled(ui->mac_address_entry->hasAcceptableInput());
+        ui->mac_random_btn->show();
+        ui->mac_save_btn->show();
+        bool isValid = ui->mac_address_entry->hasAcceptableInput();
+        ui->mac_apply_btn->setEnabled(isValid);
+        ui->mac_save_btn->setEnabled(isValid);
     } 
     else {
         ui->mac_address_entry->hide(); 
+        ui->mac_random_btn->hide();
+        ui->mac_save_btn->hide();
         ui->mac_alias_address_lbl->show();
         ui->info_mac_alias_address_lbl->setText("Alias MAC:");
         ui->mac_address_entry->setStyleSheet(""); 
@@ -499,6 +512,67 @@ void MacChangerWidget::setNativeMac() {
         loadConfig(); 
         ui->mac_alias_dropbox->setCurrentText("default_" + currentDev);
     }
+}
+
+/* 
+ * Алгоритм генерации валидного случайного MAC-адреса.
+ * Первый байт выбирается из пула чётных (Unicast) и локально администрируемых (Locally Administered),
+ * остальные 5 байт генерируются абсолютно случайно.
+ */
+QString MacChangerWidget::generateRandomMac() {
+    static const uint8_t validFirstBytes[] = { 0x02, 0x06, 0x0A, 0x0E, 0x12, 0x16, 0x1A, 0x1E };
+    int idx = QRandomGenerator::global()->bounded(0, 8);
+    
+    QStringList macParts;
+    macParts.append(QString("%1").arg(validFirstBytes[idx], 2, 16, QChar('0')).toUpper());
+    
+    for (int i = 0; i < 5; ++i) {
+        int byte = QRandomGenerator::global()->bounded(0, 256);
+        macParts.append(QString("%1").arg(byte, 2, 16, QChar('0')).toUpper());
+    }
+    
+    return macParts.join(":");
+}
+
+/* Слот для кнопки Rand. Генерирует адрес и вставляет в строку */
+void MacChangerWidget::handleRandomMac() {
+    QString randomMac = generateRandomMac();
+    ui->mac_address_entry->setText(randomMac);
+}
+
+/* Слот для кнопки Save. Запрашивает имя и сохраняет профиль в ini файл */
+void MacChangerWidget::handleSaveProfile() {
+    QString currentMacToSave = ui->mac_address_entry->text().trimmed().toUpper();
+    
+    if (!macRegex.match(currentMacToSave).hasMatch()) {
+        QMessageBox::warning(this, "Error", "Cannot save an invalid MAC address.");
+        return;
+    }
+
+    bool ok;
+    QString profileName = QInputDialog::getText(this, "Save Profile",
+                                                "Enter a name for this MAC profile:",
+                                                QLineEdit::Normal, "", &ok);
+    
+    if (!ok || profileName.trimmed().isEmpty()) return;
+    
+    QString cleanName = profileName.trimmed();
+    
+    QString diskKey = cleanName.replace(" ", "_");
+
+    settings->beginGroup(sectionName);
+    settings->setValue(diskKey, currentMacToSave);
+    settings->endGroup();
+    settings->sync();
+
+    loadConfig();
+    
+    int newIndex = ui->mac_alias_dropbox->findText(diskKey);
+    if (newIndex != -1) {
+        ui->mac_alias_dropbox->setCurrentIndex(newIndex);
+    }
+    
+    QMessageBox::information(this, "Success", QString("Profile '%1' saved successfully!").arg(profileName));
 }
 
 /* 

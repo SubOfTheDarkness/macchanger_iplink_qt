@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>384</height>
+    <width>452</width>
+    <height>388</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -175,11 +175,59 @@ border-radius: 3px;
                </widget>
               </item>
               <item>
-               <widget class="QLineEdit" name="mac_address_entry">
-                <property name="placeholderText">
-                 <string>AA:BB:CC:DD:EE:DD</string>
-                </property>
-               </widget>
+               <layout class="QHBoxLayout" name="mac_custom_layout" stretch="100,1,1">
+                <item>
+                 <widget class="QLineEdit" name="mac_address_entry">
+                  <property name="minimumSize">
+                   <size>
+                    <width>130</width>
+                    <height>0</height>
+                   </size>
+                  </property>
+                  <property name="maximumSize">
+                   <size>
+                    <width>16777215</width>
+                    <height>16777215</height>
+                   </size>
+                  </property>
+                  <property name="placeholderText">
+                   <string>AA:BB:CC:DD:EE:FF</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="mac_random_btn">
+                  <property name="minimumSize">
+                   <size>
+                    <width>50</width>
+                    <height>0</height>
+                   </size>
+                  </property>
+                  <property name="text">
+                   <string>Rand</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="mac_save_btn">
+                  <property name="minimumSize">
+                   <size>
+                    <width>50</width>
+                    <height>0</height>
+                   </size>
+                  </property>
+                  <property name="maximumSize">
+                   <size>
+                    <width>16777215</width>
+                    <height>16777215</height>
+                   </size>
+                  </property>
+                  <property name="text">
+                   <string>Save</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
               </item>
               <item>
                <widget class="QPushButton" name="mac_default_addr_btn">
@@ -207,13 +255,6 @@ border-radius: 3px;
           </layout>
          </item>
         </layout>
-       </item>
-       <item>
-        <widget class="QPushButton" name="mac_cfg_reload_btn">
-         <property name="text">
-          <string>Reload Config</string>
-         </property>
-        </widget>
        </item>
        <item>
         <widget class="QPushButton" name="mac_apply_btn">
@@ -328,6 +369,13 @@ border-radius: 3px;
           </size>
          </property>
         </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="mac_cfg_reload_btn">
+         <property name="text">
+          <string>Reload Config</string>
+         </property>
+        </widget>
        </item>
        <item>
         <layout class="QHBoxLayout" name="sett_about_layout">

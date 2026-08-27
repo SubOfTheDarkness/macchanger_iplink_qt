@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
     
     QApplication::setApplicationName("MacChanger");
-    QApplication::setApplicationVersion("1.0.0");
+    QApplication::setApplicationVersion("1.0.1");
 
     QApplication::setQuitOnLastWindowClosed(false); 
     

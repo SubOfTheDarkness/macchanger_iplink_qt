@@ -28,6 +28,8 @@ private slots:
     void handleCtrlEnter();
     void onAutostartToggled(bool checked);
     void showAboutDialog();
+    void handleRandomMac();
+    void handleSaveProfile();
 
 private:
     Ui::macchanger_widget *ui;
@@ -42,6 +44,8 @@ private:
     bool m_hasTraySupport; 
 
     inline static const QRegularExpression macRegex{"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}"};
+
+    QString generateRandomMac();
 
     void createNewPingTab();
     void closePingTab(int index);
