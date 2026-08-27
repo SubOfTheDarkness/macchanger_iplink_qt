@@ -9,7 +9,7 @@ PlasmoidItem {
     id: root
     
     width: 380
-    height: 380
+    height: 420
 
     property string currentMac: "Loading..."
     property string selectedInterface: ""
@@ -79,7 +79,8 @@ PlasmoidItem {
             profileModel.append({ "name": "[Enter Custom]", "mac": "" });
             
             for (var i = 0; i < profiles.length; i++) {
-                profileModel.append(profiles[i]);
+                var uiName = profiles[i].name.replace(/_/g, " ");
+                profileModel.append({ "name": uiName, "mac": profiles[i].mac });
             }
         }
 
@@ -110,6 +111,7 @@ PlasmoidItem {
         }
         
         var targetModelLabel = "default " + root.selectedInterface;
+        
         var targetDiskLabel = "default_" + root.selectedInterface;
         var existIndex = -1;
         

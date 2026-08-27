@@ -1,3 +1,11 @@
+function decodeQtString(str) {
+    if (!str) return "";
+    
+    return str.replace(/%U([0-9A-Fa-f]{4})/g, function(match, hex) {
+        return String.fromCharCode(parseInt(hex, 16));
+    });
+}
+
 function parseIni(rawText) {
     var lines = rawText.split('\n');
     var activeSection = "";
@@ -26,10 +34,10 @@ function parseIni(rawText) {
         }
 
         if (activeSection === "MAC_ALIASES") {
-            var cleanName = rawKey.replace(/_/g, " "); 
+            var rawProfileName = decodeQtString(rawKey); 
             var cleanMac = rawVal.toUpperCase();
-            if (cleanName && cleanMac.indexOf(":") !== -1) {
-                profilesList.push({ "name": cleanName, "mac": cleanMac });
+            if (rawProfileName && cleanMac.indexOf(":") !== -1) {
+                profilesList.push({ "name": rawProfileName, "mac": cleanMac });
             }
         }
     }
