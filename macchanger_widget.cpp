@@ -734,7 +734,7 @@ void MacChangerWidget::setAutoStart(bool enable) {
     QString appName = QCoreApplication::applicationName();
     
     QString filePath = autostartDir + "/" + appName.toLower() + ".desktop";
-    QString currentExecPath = QString("\"%1\" --tray").arg(QCoreApplication::applicationFilePath());
+    QString currentExecPath = QString("'%1' --tray").arg(QCoreApplication::applicationFilePath());
 
     if (enable) {
         QSettings autoSettings(filePath, QSettings::IniFormat);

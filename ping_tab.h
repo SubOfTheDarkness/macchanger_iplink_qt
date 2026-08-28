@@ -31,6 +31,7 @@ private slots:
 private:
     Ui::ping_tab *ui;
     QProcess *pingProcess;
+    bool m_userStopped;
 
     int m_sentPackets;
     int m_lostPackets;
@@ -42,4 +43,6 @@ private:
 
     void autoDetectSystemGateway();
     void parsePingLine(const QString &line);
+
+    void setCurrentPingDanger(bool isDanger);
 };

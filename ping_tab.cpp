@@ -11,6 +11,7 @@ PingTab::PingTab(QWidget *parent)
     , m_totalRtt(0.0)
     , m_wasConnected(true)
     , m_lastErrorType("Request timeout")
+    , m_userStopped(false)
 {
     ui->setupUi(this);
     autoDetectSystemGateway();
@@ -45,7 +46,7 @@ PingTab::PingTab(QWidget *parent)
         m_lossTimeoutTimer->stop();
         emit statusChanged(false);
 
-        if (exitCode != 0 || exitStatus == QProcess::CrashExit) {
+        if (!m_userStopped && (exitCode != 0 || exitStatus == QProcess::CrashExit)) {
             QString errorStr = QString::fromUtf8(pingProcess->readAllStandardError()).trimmed();
             
             if (errorStr.isEmpty()) {
@@ -53,9 +54,7 @@ PingTab::PingTab(QWidget *parent)
             }
 
             QMessageBox::critical(this, "Ping Execution Error", 
-                QString("<b>Failed to start ping process!</b><br><br>"
-                        "System output:<br><font color='#ff4f4f'>%1</font>")
-                .arg(errorStr));
+                QString("<b>System output:</b><br><font color='#ff4f4f'>%1</font>").arg(errorStr));
         }
     });
 }
@@ -110,14 +109,18 @@ void PingTab::togglePing() {
         ui->ping_toggle_btn->setProperty("state", "stopping");
         ui->ping_toggle_btn->style()->unpolish(ui->ping_toggle_btn);
         ui->ping_toggle_btn->style()->polish(ui->ping_toggle_btn);
+        m_userStopped = true;
         pingProcess->terminate();
         if (!pingProcess->waitForFinished(400)) { pingProcess->kill(); }
     } else {
         QString targetIp = ui->ping_ip_entry->text().trimmed();
         if (targetIp.isEmpty()) return;
+        m_userStopped = false;
 
         m_sentPackets = 0; m_lostPackets = 0; m_totalRtt = 0.0; m_wasConnected = true;
         m_lastErrorType = "Request timeout";
+
+        setCurrentPingDanger(false);
         
         ui->ping_current_entry->setText("--");
         ui->ping_avg_entry->setText("--"); 
@@ -160,11 +163,14 @@ void PingTab::parsePingLine(const QString &line) {
 
         m_wasConnected = true;
 
+        setCurrentPingDanger(false);
+
         ui->ping_current_entry->setText(QString::number(currentRtt, 'f', 1) + " ms");
         ui->ping_avg_entry->setText(QString::number(avgRtt, 'f', 1) + " ms");
         ui->ping_graph_widget->addRttPoint(currentRtt);
     } 
     else if (lossRegex.match(line).hasMatch()) {
+        setCurrentPingDanger(true);
         m_lostPackets++;
         ui->ping_loss_entry->setText(QString::number(m_lostPackets));
         ui->ping_current_entry->setText("Timeout");
@@ -181,7 +187,20 @@ void PingTab::parsePingLine(const QString &line) {
 void PingTab::checkNetworkLossTimeout() {
     if (ui->ping_notify_switch->isChecked() && m_wasConnected) {
         m_wasConnected = false;
-        
+        setCurrentPingDanger(true);
+        m_lostPackets++;
+        ui->ping_loss_entry->setText(QString::number(m_lostPackets));
+        ui->ping_current_entry->setText("Timeout");
         emit networkLossDetected(targetHost(), m_lastErrorType);
+    }
+}
+
+void PingTab::setCurrentPingDanger(bool isDanger) {
+    if (ui->ping_current_entry->property("danger").toBool() != isDanger) {
+        ui->ping_current_entry->setProperty("danger", isDanger);
+        
+        ui->ping_current_entry->style()->unpolish(ui->ping_current_entry);
+        ui->ping_current_entry->style()->polish(ui->ping_current_entry);
+        ui->ping_current_entry->update();
     }
 }

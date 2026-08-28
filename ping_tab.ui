@@ -35,7 +35,13 @@ QPushButton#ping_toggle_btn[state=&quot;active&quot;]:hover {
 QPushButton#ping_toggle_btn[state=&quot;stopping&quot;] {
     background-color: #636e72;
     color: #b2bec3;
-}</string>
+}
+
+QLineEdit#ping_current_entry[danger=&quot;true&quot;] {
+    color: #dc3545;
+    font-weight: bold;
+}
+</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
