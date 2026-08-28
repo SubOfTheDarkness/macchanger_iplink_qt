@@ -734,53 +734,71 @@ void MacChangerWidget::setAutoStart(bool enable) {
     QString appName = QCoreApplication::applicationName();
     
     QString filePath = autostartDir + "/" + appName.toLower() + ".desktop";
-    QString currentExecPath = QString("'%1' --tray").arg(QCoreApplication::applicationFilePath());
+    
+    QString binPath = QCoreApplication::applicationFilePath();
+    QString currentExecPath = binPath.contains(' ') ? QString("\"%1\" --tray").arg(binPath) : QString("%1 --tray").arg(binPath);
 
     if (enable) {
-        QSettings autoSettings(filePath, QSettings::IniFormat);
-        autoSettings.beginGroup("Desktop Entry");
-        autoSettings.setValue("Type", "Application");
-        autoSettings.setValue("Name", "MacChanger ToolKit");
-        autoSettings.setValue("Comment", "Fast MAC address changer and network ping toolkit");
-        autoSettings.setValue("Exec", currentExecPath);
-        autoSettings.setValue("Icon", "macchanger-toolkit");
-        autoSettings.setValue("Terminal", "false");
-        autoSettings.setValue("Hidden", "false");
-        autoSettings.setValue("NoDisplay", "false");
-        autoSettings.setValue("X-GNOME-Autostart-enabled", "true");
-        autoSettings.endGroup();
-
-        autoSettings.sync();
-        
-        if (autoSettings.status() != QSettings::NoError || !QFile::exists(filePath)) {
+        QFile file(filePath);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             QMessageBox::critical(this, "Autostart Error", 
-                "Failed to write the autostart configuration file. Please check folder permissions.");
+                "Failed to create the autostart file. Please check folder permissions.");
             
             ui->sett_autostart_switch->blockSignals(true);
             ui->sett_autostart_switch->setChecked(false);
             ui->sett_autostart_switch->blockSignals(false);
+            return;
         }
+
+        QTextStream out(&file);
+        out.setEncoding(QStringConverter::Utf8);
+        
+        out << "[Desktop Entry]\n";
+        out << "Name=MacChanger ToolKit\n";
+        out << "Comment=Fast MAC address changer and network ping toolkit\n";
+        out << "Exec=" << currentExecPath << "\n";
+        out << "Icon=macchanger-toolkit\n";
+        out << "StartupNotify=false\n";
+        out << "Terminal=false\n";
+        out << "Type=Application\n";
+        out << "X-GNOME-Autostart-Phase=Application\n";
+        out << "X-KDE-autostart-phase=2\n";
+        
+        file.close();
     } else {
         if (QFile::exists(filePath)) {
-            QSettings autoSettings(filePath, QSettings::IniFormat);
-            QString savedExec = autoSettings.value("Desktop Entry/Exec").toString();
+            QFile file(filePath);
+            bool safeToDelete = true;
+            
+            if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                QTextStream in(&file);
+                while (!in.atEnd()) {
+                    QString line = in.readLine();
+                    if (line.startsWith("Exec=")) {
+                        QString savedExec = line.mid(5).trimmed();
+                        if (!savedExec.isEmpty() && savedExec != currentExecPath) {
+                            file.close();
+                            
+                            QMessageBox::StandardButton reply = QMessageBox::warning(this, "Alternative App Detected",
+                                "The existing autostart entry points to a different instance or location of this application.\n\n"
+                                "Are you sure you want to delete it anyway?",
+                                QMessageBox::Yes | QMessageBox::No);
 
-            if (!savedExec.isEmpty() && savedExec != currentExecPath) {
-                QMessageBox::StandardButton reply = QMessageBox::warning(this, "Alternative App Detected",
-                    "The existing autostart entry points to a different instance or location of this application.\n\n"
-                    "Are you sure you want to delete it anyway?",
-                    QMessageBox::Yes | QMessageBox::No);
-
-                if (reply == QMessageBox::No) {
-                    ui->sett_autostart_switch->blockSignals(true);
-                    ui->sett_autostart_switch->setChecked(true);
-                    ui->sett_autostart_switch->blockSignals(false);
-                    return;
+                            if (reply == QMessageBox::No) {
+                                ui->sett_autostart_switch->blockSignals(true);
+                                ui->sett_autostart_switch->setChecked(true);
+                                ui->sett_autostart_switch->blockSignals(false);
+                                return;
+                            }
+                            break;
+                        }
+                    }
                 }
+                file.close();
             }
+            
+            QFile::remove(filePath);
         }
-        
-        QFile::remove(filePath);
     }
 }
 
