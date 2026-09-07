@@ -92,7 +92,7 @@ TerminalHelpDialog::TerminalHelpDialog(QWidget *parent, const QString &title)
     helpRoutes[2] = ":/help_ping.md";
     helpRoutes[3] = ":/help_tldr.md";
 
-    auto loadHelpSection = [&](int index) {
+    auto loadHelpSection = [=](int index) {
         if (!helpRoutes.contains(index)) return;
 
         QString cmdName;
@@ -114,17 +114,29 @@ TerminalHelpDialog::TerminalHelpDialog(QWidget *parent, const QString &title)
                                 .arg(systemUser, systemHost);
 
         QFile file(helpRoutes[index]);
+        QString contentHtml;
+
         if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
             QTextStream in(&file);
-            txtHelp->setMarkdown(in.readAll());
+            QTextEdit parser;
+            parser.setMarkdown(in.readAll());
+            contentHtml = parser.toHtml();
             file.close();
-            
-            QString parsedHtml = txtHelp->toHtml();
-            txtHelp->setHtml(execPrompt + parsedHtml + waitingPrompt);
+        } else {
+            contentHtml = QString("<br><span style='color: #ff7675;'>[ERROR] Не удалось открыть файл справки: %1</span><br>"
+                                  "<span style='color: #7f8c8d;'>Проверьте правильность путей в файле ресурсов (.qrc)</span><br>").arg(helpRoutes[index]);
         }
+
+        QString fullHtml = execPrompt + contentHtml + waitingPrompt;
+
+        QMetaObject::invokeMethod(txtHelp, [txtHelp, fullHtml]() {
+            txtHelp->setHtml(fullHtml);
+            txtHelp->moveCursor(QTextCursor::Start);
+        }, Qt::QueuedConnection);
     };
 
-    connect(menuList, &QListWidget::currentRowChanged, this, loadHelpSection);
+    connect(menuList, &QListWidget::currentRowChanged, this, loadHelpSection, Qt::QueuedConnection);
+    
     menuList->setCurrentRow(0);
 
     QPushButton *btnClose = new QPushButton("exit", this);
