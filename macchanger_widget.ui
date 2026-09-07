@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>452</width>
+    <width>460</width>
     <height>388</height>
    </rect>
   </property>
@@ -58,6 +58,28 @@ QLineEdit[error=&quot;true&quot;] {
     border: 1px solid #cc0000;
     background-color: rgba(204, 0, 0, 0.15);
 }
+
+QLabel#mac_status_lbl {
+    font-size: 11px;
+    color: #888888;
+    padding: 2px 5px;
+}
+
+QLabel#mac_status_lbl[state=&quot;danger&quot;] {
+    color: #ff4f4f;
+    font-weight: bold;
+}
+
+QLabel#mac_status_lbl[state=&quot;success&quot;] {
+    color: #28a745;
+    font-weight: bold;
+}
+
+QLabel#scan_status_lbl {
+    font-size: 11px;
+    color: #00C3FF;
+    padding: 2px;
+}
 </string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -89,7 +111,36 @@ QLineEdit[error=&quot;true&quot;] {
                </widget>
               </item>
               <item>
-               <widget class="QComboBox" name="mac_iface_dropbox"/>
+               <layout class="QHBoxLayout" name="mac_ifaces_enter_layout">
+                <item>
+                 <widget class="QComboBox" name="mac_iface_dropbox"/>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="mac_reload_ifaces_btn">
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="minimumSize">
+                   <size>
+                    <width>30</width>
+                    <height>30</height>
+                   </size>
+                  </property>
+                  <property name="maximumSize">
+                   <size>
+                    <width>30</width>
+                    <height>30</height>
+                   </size>
+                  </property>
+                  <property name="text">
+                   <string>↻</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
               </item>
               <item>
                <widget class="QPushButton" name="mac_iface_info_btn">
@@ -257,6 +308,13 @@ border-radius: 3px;
         </layout>
        </item>
        <item>
+        <widget class="QLabel" name="mac_status_lbl">
+         <property name="text">
+          <string>Status: Ready</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QPushButton" name="mac_apply_btn">
          <property name="text">
           <string>Apply</string>
@@ -306,6 +364,177 @@ border-radius: 3px;
             </size>
            </property>
           </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_scan">
+      <attribute name="title">
+       <string>scanner</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_6">
+       <item>
+        <layout class="QHBoxLayout" name="scan_func_lbl">
+         <item>
+          <widget class="QLabel" name="scan_help_lbl">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="cursor">
+            <cursorShape>CrossCursor</cursorShape>
+           </property>
+           <property name="toolTip">
+            <string>&lt;b&gt;Network Scanner Quick Help:&lt;/b&gt;&lt;br&gt;&lt;br&gt;
+        1. Click the &lt;b&gt;↻&lt;/b&gt; button to scan your local network subnet.&lt;br&gt;
+        2. Known devices from your config will be matched and locked automatically.&lt;br&gt;
+        3. For new devices, &lt;b&gt;double-click the empty 'Name' cell&lt;/b&gt;, type an alias, and click &lt;b&gt;'Save to Config'&lt;/b&gt;.&lt;br&gt;
+        4. Select any row and click &lt;b&gt;'MacChange'&lt;/b&gt; to push its data to the main changer tab.</string>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">QLabel#scan_help_lbl {
+color: #00C3FF;
+font-weight: bold;
+font-size: 13px;
+border: 1px solid #00C3FF;
+border-radius: 10px;
+min-width: 20px;
+max-width: 20px;
+min-height: 20px;
+max-height: 20px;
+background-color: transparent;
+}
+QLabel#scan_help_lbl:hover {
+background-color: rgba(0, 195, 255, 0.15);
+color: #ffffff;
+border-color: #ffffff;
+}</string>
+           </property>
+           <property name="text">
+            <string>?</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_5">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QProgressBar" name="scan_progress">
+           <property name="maximum">
+            <number>0</number>
+           </property>
+           <property name="value">
+            <number>-1</number>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="scan_start_btn">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>30</width>
+             <height>30</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>30</width>
+             <height>30</height>
+            </size>
+           </property>
+           <property name="text">
+            <string>↻</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QLabel" name="scan_status_lbl">
+         <property name="text">
+          <string>&lt;N/a&gt;</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="scanner_layout" stretch="10,0">
+         <item>
+          <widget class="QTableWidget" name="scan_table">
+           <property name="editTriggers">
+            <set>QAbstractItemView::EditTrigger::AnyKeyPressed|QAbstractItemView::EditTrigger::DoubleClicked|QAbstractItemView::EditTrigger::SelectedClicked</set>
+           </property>
+           <property name="sortingEnabled">
+            <bool>false</bool>
+           </property>
+           <column>
+            <property name="text">
+             <string>IP-address</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>MAC-address</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Name</string>
+            </property>
+           </column>
+          </widget>
+         </item>
+         <item>
+          <layout class="QVBoxLayout" name="scan_cfg_btns_layout">
+           <item>
+            <widget class="QPushButton" name="scan_save_btn">
+             <property name="text">
+              <string>Save to Config</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="scan_macchage_btn">
+             <property name="text">
+              <string>MacChange</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="verticalSpacer_5">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
          </item>
         </layout>
        </item>
@@ -371,11 +600,62 @@ border-radius: 3px;
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="mac_cfg_reload_btn">
-         <property name="text">
-          <string>Reload Config</string>
-         </property>
-        </widget>
+        <layout class="QHBoxLayout" name="settings_config_btns_layout">
+         <item>
+          <spacer name="horizontalSpacer_3">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QPushButton" name="cfg_import_btn">
+           <property name="text">
+            <string>Import Config</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="cfg_export_btn">
+           <property name="text">
+            <string>Export Config</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="cfg_reload_btn">
+           <property name="text">
+            <string>Reload Config</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="cfg_open_btn">
+           <property name="text">
+            <string>Open Config</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_4">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
        </item>
        <item>
         <layout class="QHBoxLayout" name="sett_about_layout">
@@ -396,6 +676,13 @@ border-radius: 3px;
           <widget class="QPushButton" name="sett_about_btn">
            <property name="text">
             <string>About</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="sett_help_btn">
+           <property name="text">
+            <string>Help</string>
            </property>
           </widget>
          </item>

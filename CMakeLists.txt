@@ -8,7 +8,8 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network)
+
 
 add_executable(macchanger-toolkit
     main.cpp
@@ -24,9 +25,13 @@ add_executable(macchanger-toolkit
     terminal_about_dialog.cpp
     terminal_about_dialog.h
     ping_graph.h
+    scan_worker.h
+    scan_worker.cpp
+    terminal_help_dialog.cpp
+    terminal_help_dialog.h
 )
 
-target_link_libraries(macchanger-toolkit PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets)
+target_link_libraries(macchanger-toolkit PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network)
 
 target_include_directories(macchanger-toolkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -37,7 +42,7 @@ install(FILES macchanger.desktop DESTINATION share/applications)
 install(FILES icon.png DESTINATION share/pixmaps RENAME macchanger-toolkit.png)
 
 set(CPACK_PACKAGE_NAME "macchanger-toolkit")
-set(CPACK_PACKAGE_VERSION "1.0.2")
+set(CPACK_PACKAGE_VERSION "1.0.3")
 set(CPACK_PACKAGE_RELEASE "1")
 set(CPACK_PACKAGE_CONTACT "SubOfTheDarkness <204970490+SubOfTheDarkness@users.noreply.github.com>")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Fast MAC address changer and network ping toolkit")

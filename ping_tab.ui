@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>318</height>
+    <height>340</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,27 +18,55 @@
     background-color: #28a745;
     color: white;
     font-weight: bold;
-    padding: 6px;
+    padding: 4px;
 }
 QPushButton#ping_toggle_btn:hover {
     background-color: #218838;
 }
-
-
 QPushButton#ping_toggle_btn[state=&quot;active&quot;] {
     background-color: #dc3545;
 }
 QPushButton#ping_toggle_btn[state=&quot;active&quot;]:hover {
     background-color: #c82333;
 }
-
 QPushButton#ping_toggle_btn[state=&quot;stopping&quot;] {
     background-color: #636e72;
     color: #b2bec3;
 }
 
+QLineEdit#ping_current_entry, 
+QLineEdit#ping_avg_entry, 
+QLineEdit#ping_loss_entry {
+    font-size: 10px;
+    font-weight: bold;
+    padding: 1px 2px;
+    border: 1px solid #333333;
+    border-radius: 3px;
+    background-color: #111111;
+    color: #ffffff;
+}
+
 QLineEdit#ping_current_entry[danger=&quot;true&quot;] {
-    color: #dc3545;
+    color: #ff4f4f;
+}
+
+QLabel#info_ping_toggle_graph_lbl,
+QLabel#info_ping_toggle_notify_lbl {
+    font-size: 10px;
+    color: #aaaaaa;
+}
+
+QLabel#ping_status_lbl {
+    font-size: 10px;
+    color: #888888;
+    padding: 1px 0px;
+}
+QLabel#ping_status_lbl[state=&quot;active&quot;] {
+    color: #28a745;
+    font-weight: bold;
+}
+QLabel#ping_status_lbl[state=&quot;danger&quot;] {
+    color: #ff4f4f;
     font-weight: bold;
 }
 </string>
@@ -123,6 +151,13 @@ QLineEdit#ping_current_entry[danger=&quot;true&quot;] {
     </widget>
    </item>
    <item>
+    <widget class="QLabel" name="ping_status_lbl">
+     <property name="text">
+      <string>Status: Ready</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <layout class="QHBoxLayout" name="ping_info_layout" stretch="1,10,1">
      <item>
       <layout class="QVBoxLayout" name="ping_stats_layout">
@@ -135,6 +170,12 @@ QLineEdit#ping_current_entry[danger=&quot;true&quot;] {
        </item>
        <item>
         <widget class="QLineEdit" name="ping_current_entry">
+         <property name="minimumSize">
+          <size>
+           <width>70</width>
+           <height>0</height>
+          </size>
+         </property>
          <property name="maximumSize">
           <size>
            <width>80</width>
@@ -158,6 +199,12 @@ QLineEdit#ping_current_entry[danger=&quot;true&quot;] {
        </item>
        <item>
         <widget class="QLineEdit" name="ping_avg_entry">
+         <property name="minimumSize">
+          <size>
+           <width>70</width>
+           <height>0</height>
+          </size>
+         </property>
          <property name="maximumSize">
           <size>
            <width>80</width>
@@ -277,15 +324,15 @@ border-radius: 4px;
  </widget>
  <customwidgets>
   <customwidget>
+   <class>SwitchButton</class>
+   <extends>QCheckBox</extends>
+   <header>switch_button.h</header>
+  </customwidget>
+  <customwidget>
    <class>PingGraph</class>
    <extends>QWidget</extends>
    <header>ping_graph.h</header>
    <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>SwitchButton</class>
-   <extends>QCheckBox</extends>
-   <header>switch_button.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

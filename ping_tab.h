@@ -41,6 +41,8 @@ private:
     bool m_wasConnected;
     QString m_lastErrorType;
 
+    QString formatRttValue(double rttMs);
+
     void autoDetectSystemGateway();
     void parsePingLine(const QString &line);
 

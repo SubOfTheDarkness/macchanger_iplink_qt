@@ -42,6 +42,11 @@ PingTab::PingTab(QWidget *parent)
         ui->ping_toggle_btn->setProperty("state", "default");
         ui->ping_toggle_btn->style()->unpolish(ui->ping_toggle_btn);
         ui->ping_toggle_btn->style()->polish(ui->ping_toggle_btn);
+
+        ui->ping_status_lbl->setText("Status: Ready");
+        ui->ping_status_lbl->setProperty("state", "default");
+        ui->ping_status_lbl->style()->unpolish(ui->ping_status_lbl);
+        ui->ping_status_lbl->style()->polish(ui->ping_status_lbl);
         
         m_lossTimeoutTimer->stop();
         emit statusChanged(false);
@@ -109,6 +114,12 @@ void PingTab::togglePing() {
         ui->ping_toggle_btn->setProperty("state", "stopping");
         ui->ping_toggle_btn->style()->unpolish(ui->ping_toggle_btn);
         ui->ping_toggle_btn->style()->polish(ui->ping_toggle_btn);
+        
+        ui->ping_status_lbl->setText("Status: Stopping process...");
+        ui->ping_status_lbl->setProperty("state", "default");
+        ui->ping_status_lbl->style()->unpolish(ui->ping_status_lbl);
+        ui->ping_status_lbl->style()->polish(ui->ping_status_lbl);
+
         m_userStopped = true;
         pingProcess->terminate();
         if (!pingProcess->waitForFinished(400)) { pingProcess->kill(); }
@@ -134,6 +145,11 @@ void PingTab::togglePing() {
         ui->ping_toggle_btn->style()->unpolish(ui->ping_toggle_btn);
         ui->ping_toggle_btn->style()->polish(ui->ping_toggle_btn);
         
+        ui->ping_status_lbl->setText(QString("Status: Monitoring %1...").arg(targetIp));
+        ui->ping_status_lbl->setProperty("state", "active");
+        ui->ping_status_lbl->style()->unpolish(ui->ping_status_lbl);
+        ui->ping_status_lbl->style()->polish(ui->ping_status_lbl);
+
         m_lossTimeoutTimer->start(5000); 
         emit statusChanged(true);
     }
@@ -162,11 +178,11 @@ void PingTab::parsePingLine(const QString &line) {
         double avgRtt = m_totalRtt / m_sentPackets;
 
         m_wasConnected = true;
-
         setCurrentPingDanger(false);
 
-        ui->ping_current_entry->setText(QString::number(currentRtt, 'f', 1) + " ms");
-        ui->ping_avg_entry->setText(QString::number(avgRtt, 'f', 1) + " ms");
+        ui->ping_current_entry->setText(formatRttValue(currentRtt));
+        ui->ping_avg_entry->setText(formatRttValue(avgRtt));
+        
         ui->ping_graph_widget->addRttPoint(currentRtt);
     } 
     else if (lossRegex.match(line).hasMatch()) {
@@ -198,9 +214,28 @@ void PingTab::checkNetworkLossTimeout() {
 void PingTab::setCurrentPingDanger(bool isDanger) {
     if (ui->ping_current_entry->property("danger").toBool() != isDanger) {
         ui->ping_current_entry->setProperty("danger", isDanger);
-        
         ui->ping_current_entry->style()->unpolish(ui->ping_current_entry);
         ui->ping_current_entry->style()->polish(ui->ping_current_entry);
         ui->ping_current_entry->update();
     }
+
+    if (isDanger) {
+        ui->ping_status_lbl->setText(QString("Status Alert: Connection lost to %1!").arg(targetHost()));
+        ui->ping_status_lbl->setProperty("state", "danger");
+    } else {
+        if (pingProcess->state() == QProcess::Running) {
+            ui->ping_status_lbl->setText(QString("Status: Monitoring %1...").arg(targetHost()));
+            ui->ping_status_lbl->setProperty("state", "active");
+        }
+    }
+    ui->ping_status_lbl->style()->unpolish(ui->ping_status_lbl);
+    ui->ping_status_lbl->style()->polish(ui->ping_status_lbl);
+}
+
+QString PingTab::formatRttValue(double rttMs) {
+    if (rttMs > 9999.0) {
+        double rttSec = rttMs / 1000.0;
+        return QString::number(rttSec, 'f', 2) + " s";
+    }
+    return QString::number(rttMs, 'f', 1) + " ms";
 }

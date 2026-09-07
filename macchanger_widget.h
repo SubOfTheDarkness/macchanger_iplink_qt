@@ -7,6 +7,7 @@
 #include <QSystemTrayIcon>
 #include <QTimer>
 #include <QMap>
+#include "scan_worker.h"
 
 namespace Ui {
     class macchanger_widget;
@@ -30,12 +31,23 @@ private slots:
     void handleCtrlEnter();
     void onAutostartToggled(bool checked);
     void showAboutDialog();
+    void showHelpDialog();
     void handleRandomMac();
     void handleSaveProfile();
+    void loadSystemInterfaces();
 
     void collectNetworkLossAlert(const QString &host, const QString &error);
     void sendCentralizedNotification();
     void unlockNotificationSpamProtection();
+
+    void startNetworkScan();
+    void onScanFinished(const QVector<DiscoveredDevice> &devices);
+    void saveSelectedAlias();
+    void changeMacFromScanner();
+
+    void openConfigAction();
+    void exportConfigAction();
+    void importConfigAction();
 
 private:
     Ui::macchanger_widget *ui;
@@ -52,6 +64,8 @@ private:
     QMap<QString, QString> m_alertCache;
     bool m_isCentralNotifyLocked;
 
+    ScanWorker *m_scanWorker = nullptr;
+
     inline static const QRegularExpression macRegex{"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}"};
 
     QString generateRandomMac();
@@ -62,7 +76,6 @@ private:
     void initConnections();
     void initShortcuts();
     void loadConfig();
-    void loadSystemInterfaces();
     void updateProfileMac(const QString &profileName);
     void updateCurrentMac(const QString &interface);
     void showInterfaceInfo();

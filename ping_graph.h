@@ -46,27 +46,36 @@ protected:
         
         if (!m_points.isEmpty()) {
             auto it = std::max_element(m_points.begin(), m_points.end());
-            if (*it > maxRtt) {
-                maxRtt = *it;
-            }
+            maxRtt = *it;
+            if (maxRtt <= 0) maxRtt = 10.0;
         }
         
-        maxRtt *= 1.2; 
+        int gridLinesCount = 6;
+
+        double rawStep = maxRtt / gridLinesCount;
+        
+        double magnitude = std::pow(10, std::floor(std::log10(rawStep)));
+        double residual = rawStep / magnitude;
+
+        double cleanStep;
+        if (residual < 1.5) cleanStep = 1.0 * magnitude;
+        else if (residual < 3.0) cleanStep = 2.0 * magnitude;
+        else if (residual < 7.0) cleanStep = 5.0 * magnitude;
+        else cleanStep = 10.0 * magnitude;
+
+        maxRtt = cleanStep * gridLinesCount;
 
         painter.setPen(QPen(QColor("#222222"), 1, Qt::DashLine));
         
-        int gridLinesCount = 4;
-        double rttStep = maxRtt / gridLinesCount;
-
-        for (int i = 1; i < gridLinesCount; ++i) {
-            double currentGridMs = i * rttStep;
+        for (int i = 1; i <= gridLinesCount; ++i) {
+            double currentGridMs = i * cleanStep;
             int y = height() - (currentGridMs * height() / maxRtt);
             
-            if (y > 0 && y < height()) {
+            if (y >= 0 && y < height()) {
                 painter.drawLine(0, y, width(), y);
                 
                 painter.setPen(QColor("#555555"));
-                painter.drawText(5, y - 2, QString::number(currentGridMs, 'f', 1) + " ms");
+                painter.drawText(5, y - 2, QString::number(currentGridMs, 'g', 4) + " ms");
                 painter.setPen(QPen(QColor("#222222"), 1, Qt::DashLine));
             }
         }
@@ -82,7 +91,7 @@ protected:
             double rtt = m_points[i];
             
             double x = i * stepX;
-            double y = height() - (rtt * height() / maxRtt);
+            double y = height() - (std::min(rtt, maxRtt) * height() / maxRtt);
 
             if (i == 0) {
                 path.moveTo(x, y);

@@ -1,6 +1,7 @@
 #include "macchanger_widget.h"
 #include "ui_macchanger_widget.h"
 #include "terminal_about_dialog.h"
+#include "terminal_help_dialog.h"
 #include "ping_tab.h"
 #include "icon.xpm"
 #include <QMessageBox>
@@ -22,6 +23,8 @@
 #include <QSysInfo>
 #include <QRandomGenerator>
 #include <QInputDialog>
+#include <QFileDialog>
+#include <qcoreapplication.h>
 
 /* 
  * Конструктор главного окна. Инициализирует разметку UI, устанавливает маску ввода MAC,
@@ -64,7 +67,7 @@ MacChangerWidget::MacChangerWidget(bool hasTraySupport, bool startInTray, QWidge
     createNewPingTab();
 
     statusBarLabel = new QLabel(this);
-    statusBarLabel->setText(QString(" Version: %1 | OS: Linux").arg(QCoreApplication::applicationVersion()));
+    statusBarLabel->setText(QString(" Version: %1").arg(QCoreApplication::applicationVersion()));
     
     statusBarLabel->setStyleSheet(
         "QLabel {"
@@ -80,7 +83,7 @@ MacChangerWidget::MacChangerWidget(bool hasTraySupport, bool startInTray, QWidge
     ui->sett_autostart_switch->setChecked(isAutoStartEnabled());
     ui->sett_autostart_switch->blockSignals(false);
 
-    setWindowTitle(QString("%1 Toolkit - v%2").arg(windowTitle(), QCoreApplication::applicationVersion()));
+    setWindowTitle(QString("%1 Toolkit").arg(QCoreApplication::applicationName()));
 
     m_isCentralNotifyLocked = false;
 
@@ -198,9 +201,14 @@ void MacChangerWidget::initTray() {
  */
 void MacChangerWidget::initConnections() {
     connect(ui->mac_iface_dropbox, &QComboBox::currentTextChanged, this, &MacChangerWidget::updateCurrentMac);
+    connect(ui->mac_reload_ifaces_btn, &QPushButton::clicked, this, &MacChangerWidget::loadSystemInterfaces);
     connect(ui->mac_alias_dropbox, &QComboBox::currentTextChanged, this, &MacChangerWidget::updateProfileMac);
     
-    connect(ui->mac_cfg_reload_btn, &QPushButton::clicked, this, &MacChangerWidget::reloadConfigAction);
+    connect(ui->cfg_reload_btn, &QPushButton::clicked, this, &MacChangerWidget::reloadConfigAction);
+    connect(ui->cfg_open_btn, &QPushButton::clicked, this, &MacChangerWidget::openConfigAction);
+    connect(ui->cfg_export_btn, &QPushButton::clicked, this, &MacChangerWidget::exportConfigAction);
+    connect(ui->cfg_import_btn, &QPushButton::clicked, this, &MacChangerWidget::importConfigAction);
+
     connect(ui->mac_apply_btn, &QPushButton::clicked, this, &MacChangerWidget::applyMacChange);
     
     connect(ui->mac_default_addr_btn, &QPushButton::clicked, this, &MacChangerWidget::setNativeMac);
@@ -214,6 +222,16 @@ void MacChangerWidget::initConnections() {
     connect(ui->sett_autostart_switch, &QCheckBox::toggled, this, &MacChangerWidget::onAutostartToggled);
 
     connect(ui->sett_about_btn, &QPushButton::clicked, this, &MacChangerWidget::showAboutDialog);
+    connect(ui->sett_help_btn, &QPushButton::clicked, this, &MacChangerWidget::showHelpDialog);
+
+    connect(ui->scan_start_btn, &QPushButton::clicked, this, &MacChangerWidget::startNetworkScan);
+    connect(ui->scan_save_btn, &QPushButton::clicked, this, &MacChangerWidget::saveSelectedAlias);
+    connect(ui->scan_macchage_btn, &QPushButton::clicked, this, &MacChangerWidget::changeMacFromScanner);
+
+    ui->scan_table->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->scan_table->setSelectionMode(QAbstractItemView::SingleSelection);
+
+    ui->scan_progress->setVisible(false);
 
     connect(ui->mac_address_entry, &QLineEdit::textChanged, this, [this](const QString &text) {
         bool isValid = ui->mac_address_entry->hasAcceptableInput();
@@ -357,6 +375,10 @@ void MacChangerWidget::handleCtrlEnter() {
  * В конце выставляет интерфейс по умолчанию из файла конфигурации.
  */
 void MacChangerWidget::loadSystemInterfaces() {
+    QString currentSelected = ui->mac_iface_dropbox->currentText();
+    ui->mac_iface_dropbox->blockSignals(true);
+    ui->mac_iface_dropbox->clear();
+
     QProcess process;
     process.start("ip", QStringList() << "-o" << "link" << "show");
     if (process.waitForFinished()) {
@@ -374,9 +396,29 @@ void MacChangerWidget::loadSystemInterfaces() {
         }
         ui->mac_iface_dropbox->addItems(interfaces);
     }
-    QString defaultNet = settings->value("DEFAULTS/interface", "wlan0").toString();
-    int index = ui->mac_iface_dropbox->findText(defaultNet);
-    if (index != -1) { ui->mac_iface_dropbox->setCurrentIndex(index); }
+
+    ui->mac_iface_dropbox->blockSignals(false);
+
+    int index = -1;
+    if (!currentSelected.isEmpty()) {
+        index = ui->mac_iface_dropbox->findText(currentSelected);
+    }
+
+    if (index == -1) {
+        QString defaultNet = settings->value("DEFAULTS/interface", "wlan0").toString();
+        index = ui->mac_iface_dropbox->findText(defaultNet);
+    }
+
+    if (index != -1) {
+        ui->mac_iface_dropbox->setCurrentIndex(index);
+    }
+
+    updateCurrentMac(ui->mac_iface_dropbox->currentText());
+
+    ui->mac_status_lbl->setText("Status: Network interfaces updated.");
+    ui->mac_status_lbl->setProperty("state", "default");
+    ui->mac_status_lbl->style()->unpolish(ui->mac_status_lbl);
+    ui->mac_status_lbl->style()->polish(ui->mac_status_lbl);
 }
 
 /* 
@@ -394,12 +436,182 @@ void MacChangerWidget::reloadConfigAction() {
     QMessageBox::information(this, "Success", "The configuration file has been successfully re‑read from the disk.");
 }
 
+void MacChangerWidget::openConfigAction() {
+    bool success = QProcess::startDetached("xdg-open", QStringList() << externalConfigPath);
+}
+
+void MacChangerWidget::exportConfigAction() {
+    QString savePath = QFileDialog::getSaveFileName(this, 
+        "Export Configuration Backup", 
+        QDir::homePath() + "/macchanger_backup.ini", 
+        "Configuration Files (*.ini)");
+
+    if (savePath.isEmpty()) return;
+
+    if (QFile::exists(savePath)) {
+        QFile::remove(savePath);
+    }
+
+    if (QFile::copy(externalConfigPath, savePath)) {
+        QMessageBox::information(this, "Export Success", "Your configuration backup has been saved successfully.");
+    } else {
+        QMessageBox::critical(this, "Export Error", "Failed to export configuration. Access denied or write error.");
+    }
+}
+
+void MacChangerWidget::importConfigAction() {
+    QString importPath = QFileDialog::getOpenFileName(this, 
+        "Import Configuration Backup", 
+        QDir::homePath(), 
+        "Configuration Files (*.ini)");
+
+    if (importPath.isEmpty()) return;
+
+    QSettings backupSettings(importPath, QSettings::IniFormat);
+    
+    QMap<QString, QString> currentMap;
+    QMap<QString, QString> backupMap;
+
+    settings->beginGroup(sectionName);
+    for (const QString &key : settings->allKeys()) {
+        if (!key.startsWith("HELP_")) {
+            currentMap[key] = settings->value(key).toString().trimmed().toUpper();
+        }
+    }
+    settings->endGroup();
+
+    backupSettings.beginGroup(sectionName);
+    for (const QString &key : backupSettings.allKeys()) {
+        if (!key.startsWith("HELP_")) {
+            backupMap[key] = backupSettings.value(key).toString().trimmed().toUpper();
+        }
+    }
+    backupSettings.endGroup();
+
+    struct DiffRecord {
+        QString alias;
+        QString currentMac;
+        QString backupMac;
+        QString status;
+    };
+    QVector<DiffRecord> diffList;
+
+    for (auto it = backupMap.constBegin(); it != backupMap.constEnd(); ++it) {
+        DiffRecord rec;
+        rec.alias = it.key();
+        rec.backupMac = it.value();
+
+        if (!currentMap.contains(it.key())) {
+            rec.currentMac = "<Not Found>";
+            rec.status = "Added (New)";
+            diffList.append(rec);
+        } else if (currentMap[it.key()] != it.value()) {
+            rec.currentMac = currentMap[it.key()];
+            rec.status = "Modified (Conflict)";
+            diffList.append(rec);
+        }
+    }
+
+    for (auto it = currentMap.constBegin(); it != currentMap.constEnd(); ++it) {
+        if (!backupMap.contains(it.key())) {
+            DiffRecord rec;
+            rec.alias = it.key();
+            rec.currentMac = it.value();
+            rec.backupMac = "<Removed>";
+            rec.status = "Removed (Missing)";
+            diffList.append(rec);
+        }
+    }
+
+    if (diffList.isEmpty()) {
+        QMessageBox::information(this, "Import Info", "The backup file configuration is completely identical to your current settings.");
+        return;
+    }
+
+    QDialog *diffDialog = new QDialog(this);
+    diffDialog->setWindowTitle("Configuration Conflict Analysis (Diff)");
+    diffDialog->setMinimumSize(600, 350);
+
+    QVBoxLayout *mainLayout = new QVBoxLayout(diffDialog);
+
+    QLabel *descLabel = new QLabel("<b>The following differences were detected between your configuration and the backup:</b>", diffDialog);
+    mainLayout->addWidget(descLabel);
+
+    QTableWidget *diffTable = new QTableWidget(diffDialog);
+    diffTable->setColumnCount(4);
+    diffTable->setHorizontalHeaderLabels(QStringList() << "Alias Name" << "Current System MAC" << "Importing Backup MAC" << "Change Status");
+    diffTable->setRowCount(diffList.size());
+    diffTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+    diffTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+
+    for (int i = 0; i < diffList.size(); ++i) {
+        diffTable->setItem(i, 0, new QTableWidgetItem(diffList[i].alias));
+        diffTable->setItem(i, 1, new QTableWidgetItem(diffList[i].currentMac));
+        diffTable->setItem(i, 2, new QTableWidgetItem(diffList[i].backupMac));
+        
+        QTableWidgetItem *statusItem = new QTableWidgetItem(diffList[i].status);
+        if (diffList[i].status.startsWith("Added")) statusItem->setForeground(QBrush(QColor("#28a745")));
+        else if (diffList[i].status.startsWith("Modified")) statusItem->setForeground(QBrush(QColor("#00C3FF")));
+        else if (diffList[i].status.startsWith("Removed")) statusItem->setForeground(QBrush(QColor("#ff4f4f")));
+        
+        diffTable->setItem(i, 3, statusItem);
+    }
+    diffTable->resizeColumnsToContents();
+    mainLayout->addWidget(diffTable);
+
+    QLabel *questionLabel = new QLabel("<b>Choose your deployment strategy:</b><br>"
+                                       "• <b>Merge:</b> Combine configurations, keeping your local entries and updating conflicts.<br>"
+                                       "• <b>Replace:</b> Completely wipe your current config and replace it with the backup.", diffDialog);
+    mainLayout->addWidget(questionLabel);
+
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    QPushButton *btnMerge = new QPushButton("Merge Configs", diffDialog);
+    QPushButton *btnReplace = new QPushButton("Replace Entirely", diffDialog);
+    QPushButton *btnCancel = new QPushButton("Cancel", diffDialog);
+
+    btnLayout->addWidget(btnMerge);
+    btnLayout->addWidget(btnReplace);
+    btnLayout->addSpacerItem(new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum));
+    btnLayout->addWidget(btnCancel);
+    mainLayout->addLayout(btnLayout);
+
+    diffDialog->setLayout(mainLayout);
+
+    int choice = 0;
+    
+    connect(btnMerge, &QPushButton::clicked, [&]() { choice = 1; diffDialog->accept(); });
+    connect(btnReplace, &QPushButton::clicked, [&]() { choice = 2; diffDialog->accept(); });
+    connect(btnCancel, &QPushButton::clicked, [&]() { choice = 0; diffDialog->reject(); });
+
+    diffDialog->exec();
+    diffDialog->deleteLater();
+
+    if (choice == 0) return;
+
+    if (choice == 2) {
+        QFile::remove(externalConfigPath);
+        QFile::copy(importPath, externalConfigPath);
+    } 
+    else if (choice == 1) {
+        settings->beginGroup(sectionName);
+        for (auto it = backupMap.constBegin(); it != backupMap.constEnd(); ++it) {
+            settings->setValue(it.key(), it.value());
+        }
+        settings->endGroup();
+        settings->sync();
+    }
+
+    reloadConfigAction();
+}
+
+
 /* 
  * Считывает имя выбранной сетевой карты и запускает процесс 'ip addr show'. 
  * Программно создает модальное диалоговое окно QDialog со стилизованным текстовым полем QTextEdit 
  * в режиме терминала и выводит туда подробную системную информацию об интерфейсе.
  */
 void MacChangerWidget::showInterfaceInfo() {
+    loadSystemInterfaces();
     QString interface = ui->mac_iface_dropbox->currentText();
     if (interface.isEmpty()) return;
 
@@ -486,17 +698,27 @@ void MacChangerWidget::updateCurrentMac(const QString &interface) {
                 QRegularExpressionMatch match = macRegex.match(line);
                 if (match.hasMatch()) {
                     ui->mac_current_lbl->setText(match.captured(0));
+                    ui->mac_status_lbl->setText("Status: Ready");
+                    ui->mac_status_lbl->setProperty("state", "default");
+                    ui->mac_status_lbl->style()->unpolish(ui->mac_status_lbl);
+                    ui->mac_status_lbl->style()->polish(ui->mac_status_lbl);
                     found = true;
                     break;
                 }
             }
         }
-        if (!found) ui->mac_current_lbl->setText("Not specified / Dynamic");
+        if (!found) {
+            ui->mac_current_lbl->setText("Not specified / Dynamic");
+            ui->mac_status_lbl->setText("Status: Virtual or unconfigured link detected.");
+        }
     } else {
         ui->mac_current_lbl->setText("Interface reading error");
+        ui->mac_status_lbl->setText("Status Error: Failed to query interface via system 'ip' tool.");
+        ui->mac_status_lbl->setProperty("state", "danger");
+        ui->mac_status_lbl->style()->unpolish(ui->mac_status_lbl);
+        ui->mac_status_lbl->style()->polish(ui->mac_status_lbl);
     }
 }
-
 
 /* 
  * Считывает заводской (родной) MAC-адрес интерфейса из эталонной секции [DEFAULTS] INI-файла. 
@@ -608,6 +830,12 @@ void MacChangerWidget::applyMacChange() {
                                 QMessageBox::Yes|QMessageBox::No);
     if (reply == QMessageBox::No) return;
 
+    ui->mac_status_lbl->setText("Status: Requesting root privileges via pkexec...");
+    ui->mac_status_lbl->setProperty("state", "default");
+    ui->mac_status_lbl->style()->unpolish(ui->mac_status_lbl);
+    ui->mac_status_lbl->style()->polish(ui->mac_status_lbl);
+    QCoreApplication::processEvents();
+
     QString script = QString(
         "ip link set dev %1 down\n"
         "ip link set dev %1 address %2\n"
@@ -620,11 +848,18 @@ void MacChangerWidget::applyMacChange() {
     process.closeWriteChannel();
 
     if (process.waitForFinished() && process.exitCode() == 0) {
+        ui->mac_status_lbl->setText(QString("Status: MAC address changed to %1 on %2!").arg(mac, interface));
+        ui->mac_status_lbl->setProperty("state", "success");
         QMessageBox::information(this, "Success", "MAC-address successfully changed!");
-        updateCurrentMac(interface);
+        loadSystemInterfaces();
     } else {
+        ui->mac_status_lbl->setText("Status Error: Execution failed. Permissions denied or link busy.");
+        ui->mac_status_lbl->setProperty("state", "danger");
         QMessageBox::critical(this, "Error", "Execution error. Check the access rights.");
     }
+    
+    ui->mac_status_lbl->style()->unpolish(ui->mac_status_lbl);
+    ui->mac_status_lbl->style()->polish(ui->mac_status_lbl);
 }
 
 /* 
@@ -678,6 +913,145 @@ void MacChangerWidget::closePingTab(int index) {
         }
     }
 }
+
+void MacChangerWidget::startNetworkScan() {
+    ui->scan_start_btn->setEnabled(false);
+    ui->scan_status_lbl->setText("Scanning network...");
+    
+    ui->scan_progress->setVisible(true);
+    ui->scan_progress->setMaximum(0); 
+    ui->scan_progress->setValue(-1);
+
+    ui->scan_table->clearContents();
+    ui->scan_table->setRowCount(0);
+
+    if (!m_scanWorker) {
+        m_scanWorker = new ScanWorker(this);
+        connect(m_scanWorker, &ScanWorker::scanFinished, this, &MacChangerWidget::onScanFinished);
+    }
+    
+    m_scanWorker->start();
+}
+
+void MacChangerWidget::onScanFinished(const QVector<DiscoveredDevice> &devices) {
+    ui->scan_progress->setVisible(false);
+    ui->scan_start_btn->setEnabled(true);
+    ui->scan_status_lbl->setText(QString("Found %1 devices.").arg(devices.size()));
+
+    ui->scan_table->setRowCount(devices.size());
+
+    settings->beginGroup(sectionName);
+
+    QMap<QString, QString> macToNameMap;
+    for (const QString &key : settings->allKeys()) {
+        if (!key.startsWith("HELP_")) {
+            QString configMac = settings->value(key).toString().trimmed().toUpper();
+            macToNameMap[configMac] = key;
+        }
+    }
+    settings->endGroup();
+
+    for (int i = 0; i < devices.size(); ++i) {
+        const auto &dev = devices[i];
+
+        QTableWidgetItem *ipItem = new QTableWidgetItem(dev.ip);
+        ipItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        ui->scan_table->setItem(i, 0, ipItem);
+
+        QTableWidgetItem *macItem = new QTableWidgetItem(dev.mac);
+        macItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        ui->scan_table->setItem(i, 1, macItem);
+
+        QTableWidgetItem *nameItem = new QTableWidgetItem(""); 
+        
+        if (macToNameMap.contains(dev.mac)) {
+            nameItem->setText(macToNameMap[dev.mac]);
+            nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+            nameItem->setForeground(QBrush(QColor("#888888")));
+        } else {
+            nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable);
+        }
+        ui->scan_table->setItem(i, 2, nameItem);
+    }
+    
+    ui->scan_table->resizeColumnsToContents();
+}
+void MacChangerWidget::saveSelectedAlias() {
+    int currentRow = ui->scan_table->currentRow();
+    if (currentRow == -1) {
+        QMessageBox::warning(this, "Selection Error", "Please select a row in the table first.");
+        return;
+    }
+
+    QTableWidgetItem *macItem = ui->scan_table->item(currentRow, 1);
+    QTableWidgetItem *nameItem = ui->scan_table->item(currentRow, 2);
+
+    if (!macItem || !nameItem) return;
+
+    if (!(nameItem->flags() & Qt::ItemIsEditable)) {
+        QMessageBox::information(this, "Info", "This device is already saved in your configuration.");
+        return;
+    }
+
+    QString enteredName = nameItem->text().trimmed();
+    if (enteredName.isEmpty()) {
+        QMessageBox::warning(this, "Input Error", "Please enter a name for the device directly in the 'Name' cell.");
+        return;
+    }
+
+    QString macAddress = macItem->text().toUpper();
+    QString diskKey = enteredName.replace(" ", "_");
+
+    settings->beginGroup(sectionName);
+    settings->setValue(diskKey, macAddress);
+    settings->endGroup();
+    settings->sync();
+
+    loadConfig();
+
+    nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
+    nameItem->setForeground(QBrush(QColor("#888888")));
+
+    QMessageBox::information(this, "Success", QString("Profile '%1' saved successfully!").arg(enteredName));
+}
+void MacChangerWidget::changeMacFromScanner() {
+    int currentRow = ui->scan_table->currentRow();
+    if (currentRow == -1) {
+        QMessageBox::warning(this, "Selection Error", "Please select a device from the table first.");
+        return;
+    }
+
+    QTableWidgetItem *macItem = ui->scan_table->item(currentRow, 1);
+    QTableWidgetItem *nameItem = ui->scan_table->item(currentRow, 2);
+
+    if (!macItem || !nameItem) return;
+
+    QString macAddress = macItem->text().toUpper();
+    QString deviceName = nameItem->text().trimmed();
+
+    ui->main_tabs->setCurrentIndex(0);
+
+    if (!deviceName.isEmpty() && !(nameItem->flags() & Qt::ItemIsEditable)) {
+        int index = ui->mac_alias_dropbox->findText(deviceName);
+        if (index != -1) {
+            ui->mac_alias_dropbox->setCurrentIndex(index);
+        } else {
+            ui->mac_alias_dropbox->setCurrentText("[Enter Custom]");
+            ui->mac_address_entry->setText(macAddress);
+        }
+    } else {
+        ui->mac_alias_dropbox->setCurrentText("[Enter Custom]");
+        ui->mac_address_entry->setText(macAddress);
+    }
+
+    bool isValid = ui->mac_address_entry->hasAcceptableInput();
+    ui->mac_apply_btn->setEnabled(isValid || ui->mac_alias_dropbox->currentText() != "[Enter Custom]");
+    ui->mac_status_lbl->setText(QString("Status: Target configuration loaded from scanner tab (%1)").arg(macAddress));
+    ui->mac_status_lbl->setProperty("state", "default");
+    ui->mac_status_lbl->style()->unpolish(ui->mac_status_lbl);
+    ui->mac_status_lbl->style()->polish(ui->mac_status_lbl);
+}
+
 
 /* Слот перехватывает сигнал падения сети из любого таба */
 void MacChangerWidget::collectNetworkLossAlert(const QString &host, const QString &error) {
@@ -814,4 +1188,8 @@ bool MacChangerWidget::isAutoStartEnabled() {
 /* Диалог About(лицензия) */
 void MacChangerWidget::showAboutDialog() {
     TerminalAboutDialog::showAbout(this, "A graphical tool for fast MAC address modification, profile management, and multi-threaded network diagnostics.");
+}
+
+void MacChangerWidget::showHelpDialog(){
+    TerminalHelpDialog::showHelp(this, "Help");
 }
