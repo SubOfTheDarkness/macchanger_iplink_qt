@@ -12,34 +12,34 @@ find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Network)
 
 
 add_executable(macchanger-toolkit
-    main.cpp
-    macchanger_widget.h
-    macchanger_widget.cpp
-    macchanger_widget.ui
-    ping_tab.h
-    ping_tab.cpp
-    ping_tab.ui
-    resources.qrc
-    switch_button.h
-    switch_button.cpp
-    terminal_about_dialog.cpp
-    terminal_about_dialog.h
-    ping_graph.h
-    scan_worker.h
-    scan_worker.cpp
-    terminal_help_dialog.cpp
-    terminal_help_dialog.h
+    src/main.cpp
+    src/macchanger_widget.h
+    src/macchanger_widget.cpp
+    src/macchanger_widget.ui
+    src/ping_tab.h
+    src/ping_tab.cpp
+    src/ping_tab.ui
+    src/switch_button.h
+    src/switch_button.cpp
+    src/terminal_about_dialog.cpp
+    src/terminal_about_dialog.h
+    src/ping_graph.h
+    src/scan_worker.h
+    src/scan_worker.cpp
+    src/terminal_help_dialog.cpp
+    src/terminal_help_dialog.h
+    resources/resources.qrc
 )
 
 target_link_libraries(macchanger-toolkit PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network)
 
-target_include_directories(macchanger-toolkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(macchanger-toolkit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 install(TARGETS macchanger-toolkit DESTINATION bin)
 
-install(FILES macchanger.desktop DESTINATION share/applications)
+install(FILES config/macchanger.desktop DESTINATION share/applications)
 
-install(FILES icon.png DESTINATION share/pixmaps RENAME macchanger-toolkit.png)
+install(FILES resources/icon.png DESTINATION share/pixmaps RENAME macchanger-toolkit.png)
 
 set(CPACK_PACKAGE_NAME "macchanger-toolkit")
 set(CPACK_PACKAGE_VERSION "1.0.3")

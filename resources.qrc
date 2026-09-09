@@ -1,9 +1,0 @@
-<RCC version="1.0">
-    <qresource prefix="/">
-        <file>default_config.ini</file>
-            <file>help_mac.md</file>
-            <file>help_scan.md</file>
-            <file>help_ping.md</file>
-            <file>help_tldr.md</file>
-    </qresource>
-</RCC>

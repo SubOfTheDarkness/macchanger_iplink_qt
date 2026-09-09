@@ -4,6 +4,7 @@
 build
 build-deb
 build-appimage
+build-arch
 src
 pkg
 
