@@ -7,6 +7,7 @@
 #include <QSystemTrayIcon>
 #include <QTimer>
 #include <QMap>
+#include <qobject.h>
 #include "scan_worker.h"
 
 namespace Ui {
@@ -49,6 +50,9 @@ private slots:
     void exportConfigAction();
     void importConfigAction();
 
+    void openLogsDirAction();
+    void deleteOldLogsAction();
+
 private:
     Ui::macchanger_widget *ui;
     QLabel *statusBarLabel;
@@ -65,6 +69,8 @@ private:
     bool m_isCentralNotifyLocked;
 
     ScanWorker *m_scanWorker = nullptr;
+
+    QString pingLogsPath;
 
     inline static const QRegularExpression macRegex{"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}"};
 

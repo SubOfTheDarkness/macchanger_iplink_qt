@@ -24,6 +24,10 @@
 #include <QInputDialog>
 #include <QFileDialog>
 #include <qcoreapplication.h>
+#include <QDesktopServices>
+#include <QUrl>
+#include <qpushbutton.h>
+#include <QSet>
 
 /* 
  * Конструктор главного окна. Инициализирует разметку UI, устанавливает маску ввода MAC,
@@ -130,6 +134,8 @@ void MacChangerWidget::closeEvent(QCloseEvent *event) {
  */
 void MacChangerWidget::initPaths() {
     externalConfigPath = QDir::homePath() + "/.config/macchanger/address_aliases.ini";
+
+    pingLogsPath = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/logs";
     
     QFileInfo fileInfo(externalConfigPath);
     if (!fileInfo.exists()) {
@@ -220,6 +226,8 @@ void MacChangerWidget::initConnections() {
 
     connect(ui->sett_about_btn, &QPushButton::clicked, this, &MacChangerWidget::showAboutDialog);
     connect(ui->sett_help_btn, &QPushButton::clicked, this, &MacChangerWidget::showHelpDialog);
+    connect(ui->sett_ping_logs_folder_btn, &QPushButton::clicked, this, &MacChangerWidget::openLogsDirAction);
+    connect(ui->sett_ping_logs_delete_btn, &QPushButton::clicked, this, &MacChangerWidget::deleteOldLogsAction); 
 
     connect(ui->scan_start_btn, &QPushButton::clicked, this, &MacChangerWidget::startNetworkScan);
     connect(ui->scan_save_btn, &QPushButton::clicked, this, &MacChangerWidget::saveSelectedAlias);
@@ -865,7 +873,7 @@ void MacChangerWidget::applyMacChange() {
  * Также подключает лямбда-перехватчик для динамического добавления статуса [Active] к заголовку.
  */
 void MacChangerWidget::createNewPingTab() {
-    PingTab *newPingTab = new PingTab(this);
+    PingTab *newPingTab = new PingTab(pingLogsPath, this); 
     
     int currentTabCount = ui->subtabs_ping->count();
     QString tabTitle = QString("№%1").arg(currentTabCount + 1);
@@ -1189,4 +1197,64 @@ void MacChangerWidget::showAboutDialog() {
 
 void MacChangerWidget::showHelpDialog(){
     TerminalHelpDialog::showHelp(this, "Help");
+}
+
+void MacChangerWidget::openLogsDirAction() {
+    QDesktopServices::openUrl(QUrl::fromLocalFile(pingLogsPath));
+}
+
+void MacChangerWidget::deleteOldLogsAction() {
+    QDir logsDir(pingLogsPath);
+    if (!logsDir.exists()) {
+        QMessageBox::information(this, "Delete Logs", "Logs folder is already empty or does not exist.");
+        return;
+    }
+
+    QSet<QString> activeLogFiles;
+    for (int i = 0; i < ui->subtabs_ping->count(); ++i) {
+        PingTab *tab = qobject_cast<PingTab*>(ui->subtabs_ping->widget(i));
+        if (tab) {
+            QString activeFile = tab->currentLogFileName();
+            if (!activeFile.isEmpty()) {
+                activeLogFiles.insert(activeFile);
+            }
+        }
+    }
+
+    QMessageBox::StandardButton reply = QMessageBox::question(this, "Confirm Deletion",
+                                "Are you sure you want to delete all historical ping logs?\n"
+                                "Active tab sessions will be fully protected.",
+                                QMessageBox::Yes | QMessageBox::No);
+    
+    if (reply == QMessageBox::No) return;
+
+    QStringList filters;
+    filters << "ping_tab_*.log";
+
+    int deletedCount = 0;
+    int skippedCount = 0;
+
+    QFileInfoList logFiles = logsDir.entryInfoList(filters, QDir::Files);
+    for (const QFileInfo &fileInfo : logFiles) {
+        QString fileName = fileInfo.fileName();
+
+        if (activeLogFiles.contains(fileName)) {
+            skippedCount++;
+            continue;
+        }
+
+        if (QFile::remove(fileInfo.absoluteFilePath())) {
+            deletedCount++;
+        }
+    }
+
+    if (deletedCount == 0 && skippedCount == 0) {
+        QMessageBox::information(this, "Logs Cleaned", "No log files found to delete.");
+    } else {
+        QString statusMessage = QString("Successfully deleted %1 old log file(s).").arg(deletedCount);
+        if (skippedCount > 0) {
+            statusMessage.append(QString("\n%1 active tab session(s) skipped and protected.").arg(skippedCount));
+        }
+        QMessageBox::information(this, "Logs Cleaned", statusMessage);
+    }
 }

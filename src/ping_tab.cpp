@@ -1,10 +1,14 @@
 #include "ping_tab.h"
 #include "ui_ping_tab.h"
+#include "ping_logger_dialog.h"
 #include <QStyle>
 #include <QMessageBox>
-#include <qobject.h>
+#include <QStandardPaths>
+#include <QDir>
+#include <QDateTime>
+#include <QUuid>
 
-PingTab::PingTab(QWidget *parent)
+PingTab::PingTab(const QString &logsDirectory, QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::ping_tab)
     , m_sentPackets(0)
@@ -13,10 +17,22 @@ PingTab::PingTab(QWidget *parent)
     , m_wasConnected(true)
     , m_lastErrorType("Request timeout")
     , m_userStopped(false)
+    , m_isConnectionLost(false)
+    , m_logsDir(logsDirectory)
 {
     ui->setupUi(this);
     autoDetectSystemGateway();
     pingProcess = new QProcess(this);
+
+    QDir().mkpath(m_logsDir);
+    
+    QString uniqueId = QUuid::createUuid().toString(QUuid::WithoutBraces).left(8);
+    QString logPath = QString("%1/ping_tab_%2.log").arg(m_logsDir).arg(uniqueId);
+    
+    m_logFile.setFileName(logPath);
+    if (m_logFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+        writeToLog("SYSTEM", "New ping tab session initialized.");
+    }
 
     m_lossTimeoutTimer = new QTimer(this);
     m_lossTimeoutTimer->setSingleShot(true);
@@ -28,6 +44,14 @@ PingTab::PingTab(QWidget *parent)
 
     connect(ui->ping_masc_increase_btn, &QPushButton::clicked, this, [this]() { onOctetChanged(1); });
     connect(ui->ping_masc_decrease_btn, &QPushButton::clicked, this, [this]() { onOctetChanged(-1); });
+
+    connect(ui->ping_log_clear_btn, &QPushButton::clicked, this, &PingTab::clearCurrentLog);
+
+    connect(ui->ping_logger_btn, &QPushButton::clicked, this, [this]() {
+        PingLoggerDialog *dialog = new PingLoggerDialog(this, this);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->show();
+    });
 
     ui->ping_graph_switch->setChecked(true);
     connect(ui->ping_graph_switch, &SwitchButton::toggled, this, [this](bool checked) {
@@ -54,10 +78,11 @@ PingTab::PingTab(QWidget *parent)
 
         if (!m_userStopped && (exitCode != 0 || exitStatus == QProcess::CrashExit)) {
             QString errorStr = QString::fromUtf8(pingProcess->readAllStandardError()).trimmed();
-            
             if (errorStr.isEmpty()) {
                 errorStr = "Unknown network error or invalid host configuration.";
             }
+            
+            writeToLog("SYSTEM_ERROR", QString("Process crashed or failed. Exit code: %1. Output: %2").arg(exitCode).arg(errorStr));
 
             QMessageBox::critical(this, "Ping Execution Error", 
                 QString("<b>System output:</b><br><font color='#ff4f4f'>%1</font>").arg(errorStr));
@@ -73,7 +98,30 @@ PingTab::~PingTab() {
             pingProcess->waitForFinished(50);
         }
     }
+    if (m_logFile.isOpen()) {
+        writeToLog("SYSTEM", "Ping tab session closed.");
+        m_logFile.close();
+    }
     delete ui;
+}
+
+void PingTab::writeToLog(const QString &category, const QString &message) {
+    if (!m_logFile.isOpen()) return;
+    
+    QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz");
+    QString logLine = QString("[%1] [%2] %3\n").arg(timestamp).arg(category).arg(message);
+    
+    m_logFile.write(logLine.toUtf8());
+    m_logFile.flush();
+}
+
+void PingTab::clearCurrentLog() {
+    if (!m_logFile.isOpen()) return;
+    
+    m_logFile.close();
+    if (m_logFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+        writeToLog("SYSTEM", "Log cleared by user. Resuming session...");
+    }
 }
 
 
@@ -82,6 +130,18 @@ QString PingTab::targetHost() const {
         return m_currentActiveHost;
     }
     return ui->ping_ip_entry->text().trimmed();
+}
+
+QString PingTab::currentLogFileName() const {
+    return QFileInfo(m_logFile.fileName()).fileName();
+}
+
+QString PingTab::absoluteLogFilePath() const { 
+    return m_logFile.fileName(); 
+}
+
+bool PingTab::isPingRunning() const { 
+    return pingProcess && (pingProcess->state() == QProcess::Running || pingProcess->state() == QProcess::Starting); 
 }
 
 void PingTab::autoDetectSystemGateway() {
@@ -124,6 +184,9 @@ void PingTab::togglePing() {
         ui->ping_status_lbl->style()->unpolish(ui->ping_status_lbl);
         ui->ping_status_lbl->style()->polish(ui->ping_status_lbl);
 
+        emit logStopped();
+        writeToLog("SYSTEM", "Monitoring paused by user.");
+        
         m_userStopped = true;
         pingProcess->terminate();
         if (!pingProcess->waitForFinished(400)) { pingProcess->kill(); }
@@ -135,6 +198,7 @@ void PingTab::togglePing() {
 
         m_sentPackets = 0; m_lostPackets = 0; m_totalRtt = 0.0; m_wasConnected = true;
         m_lastErrorType = "Request timeout";
+        m_isConnectionLost = false;
 
         setCurrentPingDanger(false);
         
@@ -142,6 +206,9 @@ void PingTab::togglePing() {
         ui->ping_avg_entry->setText("--"); 
         ui->ping_loss_entry->setText("0");
         ui->ping_graph_widget->clearGraph();
+
+        emit logStarted(m_currentActiveHost);
+        writeToLog("SYSTEM", QString("Monitoring started for target: %1").arg(m_currentActiveHost));
 
         pingProcess->start("ping", QStringList() << targetIp);
         
@@ -164,6 +231,7 @@ void PingTab::readPingOutput() {
     while (pingProcess->canReadLine()) {
         QString line = QString::fromUtf8(pingProcess->readLine()).trimmed();
         if (line.isEmpty()) continue;
+        writeToLog("PING", line); 
         parsePingLine(line);
     }
 }
@@ -182,15 +250,22 @@ void PingTab::parsePingLine(const QString &line) {
         m_totalRtt += currentRtt;
         double avgRtt = m_totalRtt / m_sentPackets;
 
+        if (m_isConnectionLost) {
+            writeToLog("APP_INFO", QString("Connection restored. First successful response RTT: %1 ms").arg(currentRtt));
+            m_isConnectionLost = false;
+        }
+
         m_wasConnected = true;
         setCurrentPingDanger(false);
 
         ui->ping_current_entry->setText(formatRttValue(currentRtt));
         ui->ping_avg_entry->setText(formatRttValue(avgRtt));
         
+        emit logSuccessReceived(currentRtt);
         ui->ping_graph_widget->addRttPoint(currentRtt, false);
     } 
     else if (lossRegex.match(line).hasMatch()) {
+        m_isConnectionLost = true;
         setCurrentPingDanger(true);
         m_lostPackets++;
         ui->ping_loss_entry->setText(QString::number(m_lostPackets));
@@ -203,16 +278,20 @@ void PingTab::parsePingLine(const QString &line) {
         } else {
             m_lastErrorType = "Timeout";
         }
+        emit logLossDetected(m_lastErrorType);
     }
 }
 
 void PingTab::checkNetworkLossTimeout() {
     if (ui->ping_notify_switch->isChecked() && m_wasConnected) {
         m_wasConnected = false;
+        m_isConnectionLost = true;
         setCurrentPingDanger(true);
         m_lostPackets++;
         ui->ping_loss_entry->setText(QString::number(m_lostPackets));
         ui->ping_current_entry->setText("Timeout");
+        writeToLog("APP_ALERT", "Connection lost detected by internal application timer (no response for 5000ms).");
+        emit logInternalTimerTriggered();
         emit networkLossDetected(targetHost(), m_lastErrorType);
     }
 }

@@ -29,6 +29,9 @@ add_executable(macchanger-toolkit
     src/terminal_help_dialog.cpp
     src/terminal_help_dialog.h
     resources/resources.qrc
+    src/ping_logger_dialog.cpp
+    src/ping_logger_dialog.h
+    src/ping_logger_dialog.ui
 )
 
 target_link_libraries(macchanger-toolkit PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Network)

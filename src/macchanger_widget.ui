@@ -606,60 +606,110 @@ border-color: #ffffff;
         </spacer>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="settings_config_btns_layout">
+        <layout class="QVBoxLayout" name="sett_ping_logs_layout">
          <item>
-          <spacer name="horizontalSpacer_3">
-           <property name="orientation">
-            <enum>Qt::Orientation::Horizontal</enum>
+          <widget class="QLabel" name="info_ping_logs_lbl">
+           <property name="styleSheet">
+            <string notr="true">    font-size: 13px;
+    font-weight: bold;
+    color: palette(window-text); </string>
            </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QPushButton" name="cfg_import_btn">
            <property name="text">
-            <string>Import Config</string>
+            <string>Ping logs:</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="cfg_export_btn">
-           <property name="text">
-            <string>Export Config</string>
-           </property>
-          </widget>
+          <layout class="QHBoxLayout" name="sett_ping_logs_btns_layout">
+           <item>
+            <widget class="QPushButton" name="sett_ping_logs_folder_btn">
+             <property name="text">
+              <string>Open logs folder</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="sett_ping_logs_delete_btn">
+             <property name="text">
+              <string>Delete old logs</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer_7">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
          </item>
          <item>
-          <widget class="QPushButton" name="cfg_reload_btn">
-           <property name="text">
-            <string>Reload Config</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="cfg_open_btn">
-           <property name="text">
-            <string>Open Config</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer_4">
-           <property name="orientation">
-            <enum>Qt::Orientation::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
+          <layout class="QVBoxLayout" name="sett_config_layout">
+           <item>
+            <widget class="QLabel" name="info_sett_macchanger_config_lbl">
+             <property name="styleSheet">
+              <string notr="true">    font-size: 13px;
+    font-weight: bold;
+    color: palette(window-text); </string>
+             </property>
+             <property name="text">
+              <string>Macchanger config:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <layout class="QHBoxLayout" name="settings_config_btns_layout">
+             <item>
+              <widget class="QPushButton" name="cfg_import_btn">
+               <property name="text">
+                <string>Import Config</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="cfg_export_btn">
+               <property name="text">
+                <string>Export Config</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="cfg_reload_btn">
+               <property name="text">
+                <string>Reload Config</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="cfg_open_btn">
+               <property name="text">
+                <string>Open Config</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer_4">
+               <property name="orientation">
+                <enum>Qt::Orientation::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </item>
+          </layout>
          </item>
         </layout>
        </item>

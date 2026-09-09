@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ping_logger_dialog</class>
+ <widget class="QWidget" name="ping_logger_dialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>400</width>
+    <height>300</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Ping Logger - &lt;N/a&gt;</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QWidget#Form {
+    background-color: #0c0c0c;
+}
+
+QLabel#ping_logger_info_lbl {
+    font-size: 11px;
+    font-weight: bold;
+    color: #00C3FF;
+    padding: 2px 5px;
+}
+
+QPushButton#ping_logger_open_file_btn {
+    background-color: #222222;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: bold;
+    border: 1px solid #333333;
+    border-radius: 4px;
+    padding: 4px 10px;
+}
+QPushButton#ping_logger_open_file_btn:hover {
+    background-color: #2d2d2d;
+    border-color: #00C3FF;
+}
+QPushButton#ping_logger_open_file_btn:pressed {
+    background-color: #111111;
+}
+
+QListWidget#ping_logger_list {
+    background-color: #111111;
+    border: 1px solid #222222;
+    border-radius: 4px;
+    padding: 5px;
+    font-family: &quot;Courier New&quot;, &quot;Liberation Mono&quot;, &quot;Monospace&quot;;
+    font-size: 11px;
+    color: #ffffff;
+}
+
+QListWidget#ping_logger_list::item {
+    border-bottom: 1px solid #1a1a1a;
+    padding: 4px 2px;
+}
+QListWidget#ping_logger_list::item:hover {
+    background-color: #1a1a1a;
+    border-radius: 2px;
+}
+QListWidget#ping_logger_list::item:selected {
+    background-color: #222222;
+    color: #00C3FF;
+    border-radius: 2px;
+}
+
+QListWidget#ping_logger_list QScrollBar:vertical {
+    border: none;
+    background: #111111;
+    width: 8px;
+    margin: 0px;
+}
+QListWidget#ping_logger_list QScrollBar::handle:vertical {
+    background: #333333;
+    min-height: 20px;
+    border-radius: 4px;
+}
+QListWidget#ping_logger_list QScrollBar::handle:vertical:hover {
+    background: #00C3FF;
+}
+QListWidget#ping_logger_list QScrollBar::add-line:vertical, 
+QListWidget#ping_logger_list QScrollBar::sub-line:vertical {
+    border: none;
+    background: none;
+}
+</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <layout class="QHBoxLayout" name="ping_logger_func_layout">
+     <item>
+      <widget class="QLabel" name="ping_logger_info_lbl">
+       <property name="text">
+        <string>Pinging: &lt;N/a&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="ping_logger_open_file_btn">
+       <property name="text">
+        <string>Open log file</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QListWidget" name="ping_logger_list"/>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
