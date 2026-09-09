@@ -2,6 +2,7 @@
 #include "ui_ping_tab.h"
 #include <QStyle>
 #include <QMessageBox>
+#include <qobject.h>
 
 PingTab::PingTab(QWidget *parent)
     : QWidget(parent)
@@ -77,6 +78,9 @@ PingTab::~PingTab() {
 
 
 QString PingTab::targetHost() const {
+    if (pingProcess && (pingProcess->state() == QProcess::Running || pingProcess->state() == QProcess::Starting)) {
+        return m_currentActiveHost;
+    }
     return ui->ping_ip_entry->text().trimmed();
 }
 
@@ -126,6 +130,7 @@ void PingTab::togglePing() {
     } else {
         QString targetIp = ui->ping_ip_entry->text().trimmed();
         if (targetIp.isEmpty()) return;
+        m_currentActiveHost = targetIp;
         m_userStopped = false;
 
         m_sentPackets = 0; m_lostPackets = 0; m_totalRtt = 0.0; m_wasConnected = true;
@@ -183,14 +188,15 @@ void PingTab::parsePingLine(const QString &line) {
         ui->ping_current_entry->setText(formatRttValue(currentRtt));
         ui->ping_avg_entry->setText(formatRttValue(avgRtt));
         
-        ui->ping_graph_widget->addRttPoint(currentRtt);
+        ui->ping_graph_widget->addRttPoint(currentRtt, false);
     } 
     else if (lossRegex.match(line).hasMatch()) {
         setCurrentPingDanger(true);
         m_lostPackets++;
         ui->ping_loss_entry->setText(QString::number(m_lostPackets));
         ui->ping_current_entry->setText("Timeout");
-        ui->ping_graph_widget->addRttPoint(0.0);
+        
+        ui->ping_graph_widget->addRttPoint(0.0, true);
 
         if (line.contains("unreachable", Qt::CaseInsensitive)) {
             m_lastErrorType = "Unreachable";

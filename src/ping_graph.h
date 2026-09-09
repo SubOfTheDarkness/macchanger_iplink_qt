@@ -5,17 +5,23 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QColor>
-#include <algorithm> 
+#include <algorithm>
+#include <cmath>
 
 class PingGraph : public QWidget {
     Q_OBJECT
 
 public:
+    struct PingPoint {
+        double rtt;
+        bool isLoss;
+    };
+
     explicit PingGraph(QWidget *parent = nullptr) 
         : QWidget(parent), m_enabled(true) {}
 
-    void addRttPoint(double rtt) {
-        m_points.append(rtt);
+    void addRttPoint(double rtt, bool isLoss = false) {
+        m_points.append({rtt, isLoss});
         if (m_points.size() > 60) {
             m_points.removeFirst();
         }
@@ -45,15 +51,19 @@ protected:
         double maxRtt = 10.0;
         
         if (!m_points.isEmpty()) {
-            auto it = std::max_element(m_points.begin(), m_points.end());
-            maxRtt = *it;
-            if (maxRtt <= 0) maxRtt = 10.0;
+            double currentMax = 0.0;
+            for (const auto& pt : m_points) {
+                if (!pt.isLoss && pt.rtt > currentMax) {
+                    currentMax = pt.rtt;
+                }
+            }
+            if (currentMax > 0) {
+                maxRtt = currentMax;
+            }
         }
         
         int gridLinesCount = 6;
-
         double rawStep = maxRtt / gridLinesCount;
-        
         double magnitude = std::pow(10, std::floor(std::log10(rawStep)));
         double residual = rawStep / magnitude;
 
@@ -82,27 +92,39 @@ protected:
 
         if (m_points.isEmpty()) return;
 
-        painter.setPen(QPen(QColor("#00C3FF"), 2, Qt::SolidLine));
-        
         double stepX = (m_points.size() > 1) ? (double)width() / (m_points.size() - 1) : (double)width();
-        QPainterPath path;
+
+        for (int i = 0; i < m_points.size() - 1; ++i) {
+            double rtt1 = m_points[i].rtt;
+            double rtt2 = m_points[i+1].rtt;
+            
+            double x1 = i * stepX;
+            double y1 = height() - (std::min(rtt1, maxRtt) * height() / maxRtt);
+            
+            double x2 = (i + 1) * stepX;
+            double y2 = height() - (std::min(rtt2, maxRtt) * height() / maxRtt);
+
+            if (m_points[i+1].isLoss || m_points[i].isLoss) {
+                painter.setPen(QPen(QColor("#ff4f4f"), 2, Qt::SolidLine));
+            } else {
+                painter.setPen(QPen(QColor("#00C3FF"), 2, Qt::SolidLine));
+            }
+
+            painter.drawLine(QPointF(x1, y1), QPointF(x2, y2));
+        }
 
         for (int i = 0; i < m_points.size(); ++i) {
-            double rtt = m_points[i];
-            
-            double x = i * stepX;
-            double y = height() - (std::min(rtt, maxRtt) * height() / maxRtt);
-
-            if (i == 0) {
-                path.moveTo(x, y);
-            } else {
-                path.lineTo(x, y);
+            if (m_points[i].isLoss) {
+                double x = i * stepX;
+                double y = height() - 1;
+                painter.setBrush(QColor("#ff4f4f"));
+                painter.setPen(Qt::NoPen);
+                painter.drawEllipse(QPointF(x, y), 3, 3);
             }
         }
-        painter.drawPath(path);
     }
 
 private:
-    QVector<double> m_points;
+    QVector<PingPoint> m_points;
     bool m_enabled;
 };

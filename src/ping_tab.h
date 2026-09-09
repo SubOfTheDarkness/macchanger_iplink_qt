@@ -41,6 +41,8 @@ private:
     bool m_wasConnected;
     QString m_lastErrorType;
 
+    QString m_currentActiveHost;
+
     QString formatRttValue(double rttMs);
 
     void autoDetectSystemGateway();
