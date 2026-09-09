@@ -1,102 +1,119 @@
-# MacChanger (Qt Tool)
-[Читать на русском](README_RU.md)
+# MacChanger ToolKit
 
-A cross-platform (Linux-oriented) graphical C++/Qt6 application designed for fast MAC address modification, hardware address profile management, and multi-threaded network diagnostics.
+A cross-platform graphical C++/Qt6 application for fast MAC address modification, hardware profile management, and multi-threaded network diagnostics.
 
-## Features
+* * *
 
-* **Network Interface Manager:** Automatically detects active network interfaces in the system (excluding loopback `lo`).
-* **MAC Profile Management:** Read and save custom aliases for MAC addresses via local INI configuration files.
-* **Flexible Address Changing:** Supports manual MAC address input with strict mask validation, pre-configured profile switching, or quick reset to the factory/default hardware address.
-* **Secure Execution:** System settings are applied via `pkexec`, requesting root privileges only at the exact moment of modification.
-* **System Tray Integration:** Automatically checks for system tray availability. Minimizes to the tray on close, provides a context menu for deployment, hot restarting, or exiting.
-* **Multi-threaded Diagnostics (Ping):** Supports dynamic sub-tabs (`№1`, `№2`...) to ping multiple targets simultaneously. Each tab is fully autonomous, auto-detects the active gateway (`default via`), and manages its own isolated ping process.
-* **Keyboard-Driven Workflow:** Advanced hotkey support allows full control over the application without using a mouse.
+## Features, Shortcuts and User Guide
 
-## Hotkeys (Shortcuts)
-* `Ctrl + Q` — Full application closure (unloads from memory).
-* `Ctrl + W` — Close window (minimizes to system tray).
-* `Ctrl + T` — Create a new network monitoring tab (active inside the Ping tab).
-* `Ctrl + Shift + W` — Close the current active sub-tab.
-* `Ctrl + R` — Re-read the configuration file from disk (active inside the MacChanger tab).
-* `Ctrl + Shift + R` — Trigger a hot restart of the entire application.
-* `Ctrl + Return` — Apply the MAC address or start/stop pinging (depending on the active tab).
+The application features automated interface detection, profile management via INI files, secure root execution via pkexec, multi-threaded diagnostics, and system tray integration with comprehensive keyboard shortcuts and operational guides for MAC spoofing, network scanning, and node monitoring.
 
-------------------------------
+* * *
 
-## Project Architecture
-The project is built on strict OOP principles with isolated modules:
+## Deep Dive & Kernel Engineering
 
-* `CMakeLists.txt` — Main build configuration script.
-* `main.cpp` — Application entry point, CLI flag handling, and main widget initialization.
-* `macchanger_widget.h / .cpp / .ui` — Main window logic, profile management, tray, and shortcuts.
-* `ping_tab.h / .cpp / .ui` — Autonomous, isolated ping tab widget with its own `QProcess`.
-* `resources.qrc` — Qt resource file that compiles the fallback configuration into the binary.
-* `default_config.ini` — Default fallback configuration file.
+<details>
+<summary><b>1. MAC Spoofer & Interface State Cycle</b></summary>
 
-## Configuration (INI)
-On the first run, the app creates a physical configuration file at `~/.config/macchanger/address_aliases.ini`. If empty, it imports settings from app resources:
+The app changes the MAC address by executing system commands through `pkexec` to get root privileges.
 
-* `[DEFAULTS]` — Stores the default interface and original factory MAC addresses for quick restoration.
-* `[MAC_ALIASES]` — User-defined named profiles (e.g., "Home_Router", "Work_AP").
+### How it works
+- **The Cycle:** Linux won't let you change the MAC of an active card. The app safely brings the interface **down**, writes the new 48-bit address to the kernel config, and brings the interface back **up** (forcing a fresh DHCP request to get a new IP).
+- **Smart Randomization:** When generating a random MAC, the first byte is strictly limited to specific values (`0x02`, `0x06`, `0x0A`, `0x0E`). This forces the address flags to register as *Locally Administered* and *Unicast*, preventing routers and managed switches from dropping your traffic.
 
-------------------------------
+</details>
 
-## Build and Run
+**TL;DR:** Changing MAC requires a quick down-set-up cycle. Random addresses are automatically masked so network routers accept them as normal valid devices.
+
+<details>
+<summary><b>2. Network Scanner & ARP Cache Harvesting</b></summary>
+
+The scanner maps your local network instantly without using aggressive port-scanning tools that trigger firewalls.
+
+### How it works
+- **The Subnet Wave:** The app reads your current network mask via `QNetworkInterface` to find your local `/24` subnet. It then fires rapid, parallel `ping -c 1 -W 1` commands to all 254 possible IP addresses at once.
+- **Kernel Reading:** The app doesn't even care about the ping response logs. The goal is just to force local devices to reply. When they do, the Linux kernel automatically adds them to the system ARP table. The app then simply reads the ready list directly from `/proc/net/arp` without needing root.
+
+</details>
+
+**TL;DR:** Instead of heavy port scanning, the app pings the whole subnet in 1 second to force the OS to build an ARP table, then parses `/proc/net/arp` directly.
+
+<details>
+<summary><b>3. Latency Monitor & UI Protection</b></summary>
+
+The ping engine tracks connection drops, checks line stability, and updates the tray.
+
+### How it works
+- **UI Protection:** The application monitors latency (RTT) and automatically formats the output. If your connection delays shoot past 9999 ms (or drop completely), the text display automatically switches from milliseconds to clean floating-point seconds (e.g., `14.25 s`) to keep the interface from breaking.
+- **Centralized Alerts:** An isolated `QTimer` catches connection drops. If a monitored host goes silent, it flags the UI widgets as dangerous (changing CSS colors to red) and fires a clean, batched warning to the system tray without spamming notifications.
+
+</details>
+
+**TL;DR:** The pinger tracks line stability, switches UI layout to seconds if lag is massive, and uses a single timer to safely batch tray notifications without spamming your desktop environment.
+
+* * *
+
+## Build, Packaging & Automation Tools
+
 ### System Requirements
 
-* A compiler supporting the **C++17** standard (GCC / Clang).
-* **CMake** build system (version 3.16 or higher).
-* **Qt 6** framework (Core, Gui, and Widgets components).
-* Required system utilities: `iproute2` (the `ip` command), `iputils-ping` (`ping`), and `policykit-1` (`pkexec`).
+- **Compiler:** GCC / Clang with **C++17** standard support.
+- **Build System:** CMake (version 3.16 or higher).
+- **Framework:** Qt 6 (Core, Gui, Widgets, Network).
+- **System Utilities:** `iproute2` (`ip` command), `iputils-ping` ( `ping`), and `policykit-1` ( `pkexec`).
 
-### Build Instructions
+### Standard Native Build
 
-1. Create a build directory and enter it:
-   ```sh
-   mkdir build && cd build
-   ```
-2. Generate build files via CMake:
-   ```sh
-   cmake ..
-   ```
-3. Compile the project:
-   ```sh
-   make
-   ```
-   
-### CLI Flags
-The application can be started directly in a minimized mode using the command-line flag:
+To compile the binary locally on your host machine:
+
 ```sh
-./MacChanger --tray
-```
-*Note: If the system tray is unavailable in your desktop environment, the `--tray` flag will be ignored, and the application will start in normal windowed mode.*
-
-### Package Generation
-
-#### 1. Generating .deb Package (For Debian / LMDE / Ubuntu)
-The project utilizes CMake's built-in **CPack** module to automatically package the application.
-To build a native `.deb` package that handles all system dependencies and adds a menu shortcut:
-```sh
-mkdir -p build && cd build
+mkdir build && cd build
 cmake ..
 make
-make package
+./macchanger-toolkit
 ```
-This will produce a `macchanger-toolkit-<version>-amd64.deb` file inside the `build` directory.
 
-#### 2. Generating Arch Linux Package
-A local `PKGBUILD` script is included in the repository root. To compile and clean-install the native Arch package using `pacman` directly from your local sources:
+#### Native Arch Linux Packaging
+
+The repository includes a root `PKGBUILD` script.  
+Run inside the repository root to compile and clean-install:
 ```sh
 makepkg -si
 ```
 
----
+## Dev-Tools
 
-## Security Notice
-To modify the MAC address, the application executes system commands (`ip link set dev ...`). When clicking "Apply", the OS invokes a graphical polkit window (`pkexec`) to authorize the user with root privileges. Without entering the correct administrator password, the MAC address will not be changed.
+All automation scripts are containerized using Docker to eliminate host dependency issues.
 
-If you wish to cache the password for `pkexec` (valid for 5 minutes) so you don't have to enter it every time, you can add a polkit rule (**at your own risk**):
+<details>
+<summary><b>Automated DEB Packaging</b></summary>
+
+Uses a reusable Docker image (`macchanger-builder`) based on Ubuntu 24.04 to compile the project and generate a native `.deb` package via CPack.
+
 ```sh
-echo -e 'polkit.addRule(function(action, subject) {\n    if (action.id == "org.freedesktop.policykit.exec") {\n        return polkit.Result.AUTH_ADMIN_KEEP;\n    }\n});' | sudo tee /etc/polkit-1/rules.d/50-pkexec-global.rules
+# Run from repository root to build the DEB package:
+./dev-tools/build_deb.sh
 ```
+</details>
+
+<details>
+<summary><b>DEB Testing</b></summary>
+
+Uses a reusable Docker image (`macchanger-tester`) based on Ubuntu 24.04 to spin up a clean environment. It temporarily shares your host screen socket (`xhost +local:docker`), installs the compiled `.deb` package, and launches the app to verify its UI behavior.
+
+```sh
+# Run from repository root to verify the DEB installation:
+./dev-tools/test_deb.sh
+```
+</details>
+
+<details>
+<summary><b>Docker AppImage Construction</b></summary>
+
+Uses a reusable Docker image (`appimage-builder`) based on Ubuntu 22.04 for maximum GLIBC backward compatibility. It bundles dependencies into a portable AppImage using `linuxdeployqt` and `appimagetool`.
+
+```sh
+# Run from repository root to build the AppImage:
+./dev-tools/build_docker_appimage.sh
+```
+</details>

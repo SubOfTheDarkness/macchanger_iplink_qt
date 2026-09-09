@@ -2,7 +2,7 @@
 set -e
 
 if ! docker image inspect appimage-builder &> /dev/null; then
-    echo "[*] Создание сборочного контейнера Ubuntu 22.04 для AppImage..."
+    echo "[*] Creating Ubuntu 22.04 build container for AppImage..."
     
     cat << 'EOF' > Dockerfile.appimage.tmp
 FROM ubuntu:22.04
@@ -23,7 +23,7 @@ EOF
     rm -f Dockerfile.appimage.tmp
 fi
 
-echo "[*] Запуск автоматической сборки AppImage..."
+echo "[*] Launching automated AppImage build pipeline..."
 
 docker run --rm \
     --device /dev/fuse \
@@ -41,7 +41,7 @@ docker run --rm \
 
         cp ./AppDir/usr/share/pixmaps/macchanger-toolkit.png ./AppDir/macchanger-toolkit.png && \
 
-        export VERSION=\"1.0.1\"
+        export VERSION=\"1.0.3\"
         
         linuxdeployqt ./AppDir/usr/share/applications/macchanger.desktop \
             -unsupported-allow-new-glibc \
@@ -51,6 +51,6 @@ docker run --rm \
     "
 
 echo "======================================================="
-echo " Сборка AppImage успешно завершена"
-echo " См. build-appimage/"
+echo "[+] AppImage build completed successfully!"
+echo "Check build-appimage/ directory for output."
 echo "======================================================="

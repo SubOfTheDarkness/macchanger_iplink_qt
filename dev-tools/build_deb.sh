@@ -2,7 +2,7 @@
 set -e
 
 if ! docker image inspect macchanger-builder &> /dev/null; then
-    echo "Создание локального сборочного образа для MacChanger..."
+    echo "[*] Creating local Docker build image for MacChanger..."
     
     cat << 'EOF' > Dockerfile.tmp
 FROM ubuntu:24.04
@@ -12,12 +12,11 @@ RUN apt-get update -y && \
 EOF
 
     DOCKER_BUILDKIT=1 docker build -t macchanger-builder -f Dockerfile.tmp .
-    
     rm -f Dockerfile.tmp
-    echo "Образ для сборки успешно создан и сохранен"
+    echo "[+] Build image successfully created"
 fi
 
-echo "Запуск компиляции проекта MacChanger..."
+echo "[*] Launching MacChanger compilation pipeline..."
 
 docker run --rm \
     -v "$(pwd)":/workspace \
@@ -29,6 +28,6 @@ docker run --rm \
     "
 
 echo "======================================================="
-echo "Сборка MacChanger успешно завершена"
-echo "$(ls build-deb/*.deb 2>/dev/null || echo 'Пакет не найден')"
+echo "[+] MacChanger DEB build completed successfully!"
+echo "$(ls build-deb/*.deb 2>/dev/null || echo '[-] Error: Package not found')"
 echo "======================================================="

@@ -2,7 +2,7 @@
 set -e
 
 if ! docker image inspect macchanger-tester &> /dev/null; then
-    echo "Создание чистого рантайм-образа для тестов..."
+    echo "[*] Creating clean runtime Docker image for testing..."
     
     cat << 'EOF' > Dockerfile.tmp
 FROM ubuntu:24.04
@@ -11,7 +11,7 @@ EOF
 
     DOCKER_BUILDKIT=0 docker build -t macchanger-tester -f Dockerfile.tmp .
     rm -f Dockerfile.tmp
-    echo "Базовый тестовый образ успешно создан"
+    echo "[+] Base test image successfully created"
 fi
 
 xhost +local:docker > /dev/null
@@ -19,11 +19,11 @@ xhost +local:docker > /dev/null
 DEB_FILE=$(ls build-deb/*.deb 2>/dev/null | head -n 1)
 
 if [ -z "$DEB_FILE" ]; then
-    echo "Ошибка: .deb пакет не найден в папке build-deb/."
+    echo "[-] Error: .deb package not found in build-deb/ directory."
     exit 1
 fi
 
-echo "Найден пакет для тестирования: $DEB_FILE"
+echo "[*] Found target package for validation: $DEB_FILE"
 
 docker run -it --rm \
     --net=host \
@@ -36,7 +36,7 @@ docker run -it --rm \
     macchanger-tester /bin/bash -c "
         apt-get update -y && \
         apt-get install -y /workspace/$DEB_FILE && \
-        echo 'Пакет macchanger-toolkit успешно установлен со всеми зависимостями' && \
+        echo '[+] Package macchanger-toolkit installed successfully with all dependencies' && \
         macchanger-toolkit
     "
 
