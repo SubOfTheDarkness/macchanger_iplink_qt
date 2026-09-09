@@ -51,6 +51,32 @@ The ping engine tracks connection drops, checks line stability, and updates the 
 
 **TL;DR:** The pinger tracks line stability, switches UI layout to seconds if lag is massive, and uses a single timer to safely batch tray notifications without spamming your desktop environment.
 
+<details>
+<summary><b>4. Isolated Session Logging & UUID Sandboxing</b></summary>
+
+The monitoring subsystem features atomic persistent logging bound to individual tab lifecycles.
+
+### How it works
+- **Session Sandboxing:** To prevent multiple concurrent ping engines from overlapping, each diagnostic tab generates a unique session `UUID` upon creation. This UUID maps directly to an isolated log file inside `~/.local/share/macchanger/logs/`, sandboxing concurrent outputs.
+- **Atomic Disk Synchronization:** Raw output streams are captured directly from standard process descriptors, stamped with millisecond-grade ISO timestamps, and explicitly flushed to the non-volatile storage layer (`m_logFile.flush()`) upon state shifts. This prevents buffered data loss during runtime crashes.
+
+</details>
+
+**TL;DR:** Diagnostic logs are strictly bound to unique tab session UUIDs in user data directory and forced-flushed to disk immediately on connection state changes.
+
+<details>
+<summary><b>5. Intelligent Real-Time Aggregator Engine</b></summary>
+
+The interface features an intelligent live logger dialog that compresses huge streams of diagnostic outputs into an intuitive scannable event list.
+
+### How it works
+- **Dynamic Compression:** Instead of multiplying standard sequential ping lines, the aggregator tracks the tail index of the `QListWidget`. If consecutive packets respond cleanly, the item's matrix counters are re-calculated and overwritten in-place, reducing thousands of ticks into a single live rolling cell.
+- **Error Stack Collapsing:** The logger maps system exception streams via an internal state enum (`State::SystemError`). Consecutive drop packages trigger loop-count calculations that stack the UI warnings into an active counter indicator `(xN)`. This leaves the visual terminal completely readable during extended offline intervals.
+
+</details>
+
+**TL;DR:** The live logger squashes thousands of clean ping rows into a single rolling statistical row and condenses massive error floods into clean stacked warning blocks.
+
 * * *
 
 ## Build, Packaging & Automation Tools

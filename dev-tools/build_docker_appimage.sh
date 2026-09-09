@@ -41,7 +41,7 @@ docker run --rm \
 
         cp ./AppDir/usr/share/pixmaps/macchanger-toolkit.png ./AppDir/macchanger-toolkit.png && \
 
-        export VERSION=\"1.0.3\"
+        export VERSION=\"1.0.4\"
         
         linuxdeployqt ./AppDir/usr/share/applications/macchanger.desktop \
             -unsupported-allow-new-glibc \
